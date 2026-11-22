@@ -69,7 +69,7 @@ public class MainActivity extends Activity {
         col.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView title = new TextView(this);
-        title.setText("ZM Remaster");
+        title.setText("Metroid Zero Mission Remaster");
         title.setTextColor(0xFFF58220);
         title.setTextSize(30);
         title.setGravity(Gravity.CENTER);
@@ -227,6 +227,25 @@ public class MainActivity extends Activity {
         blp.topMargin = 90;
         root.addView(bar, blp);
 
+        final TextView tog = new TextView(this);
+        tog.setText("◉");
+        tog.setTextColor(0xFFFFFFFF);
+        tog.setTextSize(22);
+        tog.setGravity(Gravity.CENTER);
+        tog.setBackgroundColor(0x66000000);
+        tog.setAlpha(0.7f);
+        tog.setOnClickListener(v -> {
+            uiHidden = !uiHidden;
+            bar.setVisibility(uiHidden ? View.GONE : View.VISIBLE);
+            if (controls != null) controls.setVisibility(uiHidden ? View.GONE : View.VISIBLE);
+            if (uiHidden && panelHolder != null) { root.removeView(panelHolder); panelHolder = null; panel = null; }
+            tog.setAlpha(uiHidden ? 0.35f : 0.7f);
+        });
+        uiHidden = false;
+        FrameLayout.LayoutParams tlp = new FrameLayout.LayoutParams(96, 96, Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        tlp.leftMargin = 30;
+        root.addView(tog, tlp);
+
         legend = new TextView(this);
         legend.setTextColor(0xFFFFFFFF);
         legend.setBackgroundColor(0xAA000000);
@@ -248,6 +267,7 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout panel;
+    private boolean uiHidden = false;
     private boolean fxOn = true, testOn = false, pausedOn = false, cheatOn = false;
     private TextView legend;
     private LinearLayout bar;
@@ -369,13 +389,104 @@ public class MainActivity extends Activity {
     }
 
     private void showSettings() {
-        if (panel != null) { root.removeView(panelHolder); panelHolder = null; panel = null; return; }
-        buildPanel();
+        if (panelHolder != null) { root.removeView(panelHolder); panelHolder = null; panel = null; return; }
+        openMain();
     }
 
-    private void buildPanel() {
+    private void closePanel() {
         if (panelHolder != null) root.removeView(panelHolder);
         panelHolder = null;
+        panel = null;
+    }
+
+    /** Muestra un panel en una columna con ancho relativo a la pantalla. */
+    private LinearLayout openPanelBox(float widthFrac) {
+        closePanel();
+        panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setBackgroundColor(0xEE111111);
+        panel.setPadding(36, 24, 36, 24);
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.setBackgroundColor(0xEE111111);
+        sv.addView(panel, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        int w = (int) (getResources().getDisplayMetrics().widthPixels * widthFrac);
+        root.addView(sv, new FrameLayout.LayoutParams(w, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
+        panelHolder = sv;
+        return panel;
+    }
+
+    private Button menuBtn(String t) {
+        Button b = new Button(this);
+        b.setText(t);
+        b.setTextSize(19);
+        b.setAllCaps(false);
+        b.setPadding(30, 26, 30, 26);
+        return b;
+    }
+
+    private void addBig(LinearLayout box, String t, View.OnClickListener l) {
+        Button b = menuBtn(t);
+        b.setOnClickListener(l);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = 14;
+        box.addView(b, lp);
+    }
+
+    private void openMain() {
+        LinearLayout box = openPanelBox(0.5f);
+        TextView t = new TextView(this);
+        t.setText("Configuración");
+        t.setTextColor(0xFFFFFFFF);
+        t.setTextSize(20);
+        box.addView(t);
+        addBig(box, "Filtros", v -> buildPanel());
+        addBig(box, "Estados de juego (guardar / cargar)", v -> openStates());
+        addBig(box, "Botones del control", v -> showButtonMap());
+        addBig(box, "Volver al menú principal", v ->
+                new android.app.AlertDialog.Builder(this)
+                        .setTitle("Volver al menú principal")
+                        .setMessage("¿Salir de la partida? Lo no guardado en un estado se perderá.")
+                        .setPositiveButton("Sí, salir", (d, w) -> showMenu())
+                        .setNegativeButton("Cancelar", null)
+                        .show());
+        addBig(box, "Cerrar", v -> closePanel());
+    }
+
+    private void openStates() {
+        LinearLayout box = openPanelBox(0.7f);
+        TextView t = new TextView(this);
+        t.setText("Estados de juego");
+        t.setTextColor(0xFFFFFFFF);
+        t.setTextSize(20);
+        box.addView(t);
+        box.addView(label("Guardar en"));
+        LinearLayout r1 = new LinearLayout(this);
+        r1.setOrientation(LinearLayout.HORIZONTAL);
+        box.addView(label("Cargar de"));
+        LinearLayout r2 = new LinearLayout(this);
+        r2.setOrientation(LinearLayout.HORIZONTAL);
+        for (int i = 1; i <= 3; i++) {
+            final int slot = i;
+            Button g = menuBtn("Guardar " + i);
+            g.setOnClickListener(v -> stateAction(slot, 1));
+            r1.addView(g, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            Button l = menuBtn("Cargar " + i);
+            l.setOnClickListener(v -> stateAction(slot, 2));
+            r2.addView(l, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        // orden: titulo, label, fila1, label, fila2
+        box.removeAllViews();
+        box.addView(t);
+        box.addView(label("Guardar en"));
+        box.addView(r1);
+        box.addView(label("Cargar de"));
+        box.addView(r2);
+        addBig(box, "Volver", v -> openMain());
+    }
+
+    /** Panel de filtros (nombre a la izquierda, opciones a la derecha) y slots de combinacion. */
+    private void buildPanel() {
+        closePanel();
         panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.HORIZONTAL);
         panel.setBackgroundColor(0xEE111111);
@@ -389,7 +500,7 @@ public class MainActivity extends Activity {
         panel.addView(rightCol, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView t = new TextView(this);
-        t.setText("Ajustes");
+        t.setText("Filtros");
         t.setTextColor(0xFFFFFFFF);
         t.setTextSize(17);
         leftCol.addView(t);
@@ -403,7 +514,6 @@ public class MainActivity extends Activity {
         optionRow("Halo HUD", "hud", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Sonido grave", "audio", 0, 3, new String[]{"No", "1", "2", "3"});
 
-        // ---- columna derecha: slots y estados
         rightCol.addView(label("Cargar combinación"));
         LinearLayout load = new LinearLayout(this);
         load.setOrientation(LinearLayout.HORIZONTAL);
@@ -446,43 +556,17 @@ public class MainActivity extends Activity {
         }
         rightCol.addView(save);
 
-        rightCol.addView(label("Estado del juego: guardar en"));
-        LinearLayout ss1 = new LinearLayout(this);
-        ss1.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout ss2 = new LinearLayout(this);
-        ss2.setOrientation(LinearLayout.HORIZONTAL);
-        for (int i = 1; i <= 3; i++) {
-            final int slot = i;
-            Button gb = small("" + i);
-            gb.setOnClickListener(v -> stateAction(slot, 1));
-            ss1.addView(gb);
-            Button lb = small("" + i);
-            lb.setOnClickListener(v -> stateAction(slot, 2));
-            ss2.addView(lb);
-        }
-        rightCol.addView(ss1);
-        rightCol.addView(label("Estado del juego: cargar de"));
-        rightCol.addView(ss2);
-
-        Button pad = small("Botones del control");
-        pad.setOnClickListener(v -> showButtonMap());
-        LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        plp.topMargin = 20;
-        rightCol.addView(pad, plp);
-
-        Button close = small("Cerrar");
-        close.setOnClickListener(v -> { root.removeView(panelHolder); panelHolder = null; panel = null; });
+        Button back = small("Volver");
+        back.setOnClickListener(v -> openMain());
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        clp.topMargin = 24;
-        rightCol.addView(close, clp);
+        clp.topMargin = 28;
+        rightCol.addView(back, clp);
 
         android.widget.ScrollView sv = new android.widget.ScrollView(this);
         sv.setBackgroundColor(0xEE111111);
         sv.addView(panel, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         int w = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w,
-                ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER);
-        root.addView(sv, lp);
+        root.addView(sv, new FrameLayout.LayoutParams(w, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
         panelHolder = sv;
     }
     private View panelHolder;
