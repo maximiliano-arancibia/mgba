@@ -18,6 +18,7 @@
 
 // ZM: banderas por pixel (capa/prioridad) del ultimo cuadro, para el modo de prueba
 uint8_t zmFlagBuf[GBA_VIDEO_HORIZONTAL_PIXELS * GBA_VIDEO_VERTICAL_PIXELS];
+uint8_t zmSrc[GBA_VIDEO_HORIZONTAL_PIXELS];
 
 static void GBAVideoSoftwareRendererInit(struct GBAVideoRenderer* renderer);
 static void GBAVideoSoftwareRendererDeinit(struct GBAVideoRenderer* renderer);
@@ -710,7 +711,7 @@ static void GBAVideoSoftwareRendererDrawScanline(struct GBAVideoRenderer* render
 	int x;
 	if (y >= 0 && y < GBA_VIDEO_VERTICAL_PIXELS) {
 		for (x = 0; x < GBA_VIDEO_HORIZONTAL_PIXELS; ++x) {
-			zmFlagBuf[y * GBA_VIDEO_HORIZONTAL_PIXELS + x] = softwareRenderer->row[x] >> 24;
+			zmFlagBuf[y * GBA_VIDEO_HORIZONTAL_PIXELS + x] = zmSrc[x];
 		}
 	}
 	if (softwareRenderer->stereo) {
@@ -950,15 +951,18 @@ void GBAVideoSoftwareRendererPreprocessBuffer(struct GBAVideoSoftwareRenderer* s
 		int end = softwareRenderer->windows[w].endX;
 		for (; x & 3; ++x) {
 			softwareRenderer->row[x] = backdrop;
+			zmSrc[x] = (uint8_t) (backdrop >> 24);
 		}
 		for (; x < end - 3; x += 4) {
 			softwareRenderer->row[x] = backdrop;
 			softwareRenderer->row[x + 1] = backdrop;
 			softwareRenderer->row[x + 2] = backdrop;
 			softwareRenderer->row[x + 3] = backdrop;
+			zmSrc[x] = zmSrc[x + 1] = zmSrc[x + 2] = zmSrc[x + 3] = (uint8_t) (backdrop >> 24);
 		}
 		for (; x < end; ++x) {
 			softwareRenderer->row[x] = backdrop;
+			zmSrc[x] = (uint8_t) (backdrop >> 24);
 		}
 	}
 

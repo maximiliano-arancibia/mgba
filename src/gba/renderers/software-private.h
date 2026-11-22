@@ -38,6 +38,15 @@ static inline unsigned _darken(unsigned color, int y);
 // The lower the number, the higher the priority, and sprites take precedence over backgrounds
 // We want to do special processing if the color pixel is target 1, however
 
+// ZM: registro de que capa gana cada pixel (las banderas de la capa delantera se pierden al componer)
+extern uint8_t zmSrc[];
+static inline void _zmWin(struct GBAVideoSoftwareRenderer* renderer, uint32_t* pixel, uint32_t color) {
+	ptrdiff_t i = pixel - renderer->row;
+	if (i >= 0 && i < GBA_VIDEO_HORIZONTAL_PIXELS) {
+		zmSrc[i] = (uint8_t) (color >> 24);
+	}
+}
+
 static inline void _compositeBlendObjwin(struct GBAVideoSoftwareRenderer* renderer, uint32_t* pixel, uint32_t color, uint32_t current) {
 	if (color >= current) {
 		if (current & FLAG_TARGET_1 && color & FLAG_TARGET_2) {
@@ -46,6 +55,7 @@ static inline void _compositeBlendObjwin(struct GBAVideoSoftwareRenderer* render
 			color = current & (0x00FFFFFF | FLAG_REBLEND | FLAG_OBJWIN);
 		}
 	} else {
+		_zmWin(renderer, pixel, color);
 		color = (color & ~FLAG_TARGET_2) | (current & FLAG_OBJWIN);
 	}
 	*pixel = color;
@@ -59,6 +69,7 @@ static inline void _compositeBlendNoObjwin(struct GBAVideoSoftwareRenderer* rend
 			color = current & (0x00FFFFFF | FLAG_REBLEND | FLAG_OBJWIN);
 		}
 	} else {
+		_zmWin(renderer, pixel, color);
 		color = color & ~FLAG_TARGET_2;
 	}
 	*pixel = color;
@@ -68,6 +79,7 @@ static inline void _compositeNoBlendObjwin(struct GBAVideoSoftwareRenderer* rend
                                            uint32_t current) {
 	UNUSED(renderer);
 	if (color < current) {
+		_zmWin(renderer, pixel, color);
 		color |= (current & FLAG_OBJWIN);
 	} else {
 		color = current & (0x00FFFFFF | FLAG_REBLEND | FLAG_OBJWIN);
@@ -77,9 +89,10 @@ static inline void _compositeNoBlendObjwin(struct GBAVideoSoftwareRenderer* rend
 
 static inline void _compositeNoBlendNoObjwin(struct GBAVideoSoftwareRenderer* renderer, uint32_t* pixel, uint32_t color,
                                              uint32_t current) {
-	UNUSED(renderer);
 	if (color >= current) {
 		color = current & (0x00FFFFFF | FLAG_REBLEND | FLAG_OBJWIN);
+	} else {
+		_zmWin(renderer, pixel, color);
 	}
 	*pixel = color;
 }
