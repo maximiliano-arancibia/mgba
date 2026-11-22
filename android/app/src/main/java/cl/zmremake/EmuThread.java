@@ -10,6 +10,28 @@ public class EmuThread extends Thread {
     private volatile boolean running = true;
     public static volatile float fps = 0, runMs = 0;
     public static volatile int speed = 1;
+    public static volatile int eq = 0;   // 0 = sin ecualizar, 1..3 = mas grave
+    private static final float[] BASS = {0f, 0.35f, 0.70f, 1.10f};
+    private static final float[] TREB = {0f, 9000f, 6500f, 4500f};
+    private float lb0, lb1, hc0, hc1;   // estados de los filtros (izq, der)
+
+    private void applyEq(short[] a, int frames, int rate) {
+        int lv = eq;
+        if (lv <= 0) return;
+        float g = BASS[lv];
+        float ab = 1f - (float) Math.exp(-2 * Math.PI * 200.0 / rate);
+        float ah = 1f - (float) Math.exp(-2 * Math.PI * TREB[lv] / rate);
+        float comp = 1f / (1f + 0.45f * g);
+        for (int i = 0; i < frames; i++) {
+            float l = a[2 * i], r = a[2 * i + 1];
+            lb0 += ab * (l - lb0); lb1 += ab * (r - lb1);
+            l += g * lb0; r += g * lb1;
+            hc0 += ah * (l - hc0); hc1 += ah * (r - hc1);
+            float ol = hc0 * comp, or = hc1 * comp;
+            a[2 * i] = (short) Math.max(-32768, Math.min(32767, ol));
+            a[2 * i + 1] = (short) Math.max(-32768, Math.min(32767, or));
+        }
+    }
 
     public EmuThread(GameView view) { this.view = view; }
 
@@ -54,7 +76,10 @@ public class EmuThread extends Thread {
             view.frameReady();
             int r = Native.audioRate();
             if (r != curRate && r > 0) { curRate = r; track.setPlaybackRate(r); }
-            if (n > 0 && speed == 1) track.write(audio, 0, n * 2, AudioTrack.WRITE_NON_BLOCKING);
+            if (n > 0 && speed == 1) {
+                applyEq(audio, n, curRate);
+                track.write(audio, 0, n * 2, AudioTrack.WRITE_NON_BLOCKING);
+            }
             // reloj propio: esperar hasta el siguiente cuadro
             long now2 = System.nanoTime();
             if (now2 - next > 100_000_000L) next = now2; // nos atrasamos mucho: reiniciar
