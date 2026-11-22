@@ -52,48 +52,61 @@ public class MainActivity extends Activity {
         showMenu();
     }
 
+    private Button big(String t) {
+        Button b = new Button(this);
+        b.setText(t);
+        b.setTextSize(20);
+        b.setAllCaps(false);
+        b.setPadding(40, 28, 40, 28);
+        return b;
+    }
+
     private void showMenu() {
         stopGame();
         root.removeAllViews();
-        Button open = new Button(this);
-        open.setText("Abrir ROM");
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        TextView title = new TextView(this);
+        title.setText("ZM Remaster");
+        title.setTextColor(0xFFF58220);
+        title.setTextSize(30);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, 28);
+        col.addView(title);
+
+        int bw = (int) (getResources().getDisplayMetrics().widthPixels * 0.5f);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(bw, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = 18;
+
+        SharedPreferences sp = getPreferences(MODE_PRIVATE);
+        String last = sp.getString("last", null);
+        if (last != null && new File(last).exists()) {
+            Button cont = big("Continuar");
+            cont.setOnClickListener(v -> startGame(new File(last)));
+            col.addView(cont, lp);
+        }
+
+        Button open = big("Abrir ROM");
         open.setOnClickListener(v -> {
             Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             i.addCategory(Intent.CATEGORY_OPENABLE);
             i.setType("*/*");
             startActivityForResult(i, PICK);
         });
-        root.addView(open, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        col.addView(open, lp);
 
-        Button cfg = new Button(this);
-        cfg.setText("Configuración");
-        cfg.setOnClickListener(v -> {
-            final String[] opts = {"Modo juego (limpio)", "Modo test (con diagnóstico)"};
-            new android.app.AlertDialog.Builder(this)
-                    .setTitle("Configuración")
-                    .setSingleChoiceItems(opts, pref("mode", 1), (d, which) -> {
-                        getPreferences(MODE_PRIVATE).edit().putInt("mode", which).apply();
-                        d.dismiss();
-                        Toast.makeText(this, which == 0 ? "Modo juego" : "Modo test", Toast.LENGTH_SHORT).show();
-                    }).show();
+        final Button mode = big(pref("mode", 1) == 1 ? "Modo: test" : "Modo: juego");
+        mode.setOnClickListener(v -> {
+            int nm = pref("mode", 1) == 1 ? 0 : 1;
+            getPreferences(MODE_PRIVATE).edit().putInt("mode", nm).apply();
+            mode.setText(nm == 1 ? "Modo: test" : "Modo: juego");
         });
-        FrameLayout.LayoutParams clp0 = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
-        clp0.bottomMargin = 260;
-        root.addView(cfg, clp0);
+        col.addView(mode, lp);
 
-        SharedPreferences sp = getPreferences(MODE_PRIVATE);
-        String last = sp.getString("last", null);
-        if (last != null && new File(last).exists()) {
-            Button cont = new Button(this);
-            cont.setText("Continuar: " + new File(last).getName());
-            cont.setOnClickListener(v -> startGame(new File(last)));
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
-            lp.topMargin = 220;
-            root.addView(cont, lp);
-        }
+        root.addView(col, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
     }
 
     @Override protected void onActivityResult(int req, int res, Intent data) {
@@ -200,6 +213,15 @@ public class MainActivity extends Activity {
         });
         bar.addView(ps);
         bar.addView(barBtn("⏪", v -> Native.rewind()));
+        final TextView ch = barBtn("♥", null);
+        Native.setCheatLife(false);
+        ch.setOnClickListener(v -> {
+            cheatOn = !cheatOn;
+            Native.setCheatLife(cheatOn);
+            ch.setBackgroundColor(cheatOn ? 0xCCCC0000 : 0x66000000);
+            Toast.makeText(this, cheatOn ? "Vida y munición infinitas: ON" : "Vida y munición infinitas: OFF", Toast.LENGTH_SHORT).show();
+        });
+        bar.addView(ch);
         FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
         blp.topMargin = 90;
@@ -217,6 +239,7 @@ public class MainActivity extends Activity {
         root.addView(legend, llp);
         testOn = false;
         pausedOn = false;
+        cheatOn = false;
         Native.setTest(false);
         Native.setPaused(false);
         h.post(tick);
@@ -225,7 +248,7 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout panel;
-    private boolean fxOn = true, testOn = false, pausedOn = false;
+    private boolean fxOn = true, testOn = false, pausedOn = false, cheatOn = false;
     private TextView legend;
     private LinearLayout bar;
     private final int[] st = new int[38];
@@ -282,8 +305,8 @@ public class MainActivity extends Activity {
         sb.append("\nBlanco = sprite sin paleta clara: " + st[21]);
         legend.setText(sb);
     }
-    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "audio", "halo", "hud", "sgrain", "ssize"};
-    private static final int[] DEFS = {0, 0, 3, 0, 0, 0, 0, 0, 0, 2};
+    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "audio", "halo", "hud"};
+    private static final int[] DEFS = {0, 0, 3, 0, 0, 0, 0, 0};
 
     private int pref(String k, int d) { return getPreferences(MODE_PRIVATE).getInt(k, d); }
 
@@ -297,8 +320,6 @@ public class MainActivity extends Activity {
         view.setLuces(pref("luces", 0));
         view.setHalo(pref("halo", 0));
         view.setHud(pref("hud", 0));
-        view.setSprGrain(pref("sgrain", 0));
-        view.setSprSize(pref("ssize", 2));
     }
 
     private TextView label(String t) {
@@ -319,10 +340,18 @@ public class MainActivity extends Activity {
         return b;
     }
 
+    private LinearLayout leftCol, rightCol;
+
     private void optionRow(String title, String key, int first, int last, String[] names) {
-        panel.addView(label(title));
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, 6, 0, 6);
+        TextView l = new TextView(this);
+        l.setText(title);
+        l.setTextColor(0xFFDDDDDD);
+        l.setTextSize(14);
+        row.addView(l, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         int cur = pref(key, DEFS[java.util.Arrays.asList(KEYS).indexOf(key)]);
         final Button[] bs = new Button[last + 1];
         for (int i = first; i <= last; i++) {
@@ -336,7 +365,7 @@ public class MainActivity extends Activity {
             });
             row.addView(bs[i]);
         }
-        panel.addView(row);
+        leftCol.addView(row);
     }
 
     private void showSettings() {
@@ -348,28 +377,34 @@ public class MainActivity extends Activity {
         if (panelHolder != null) root.removeView(panelHolder);
         panelHolder = null;
         panel = new LinearLayout(this);
-        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setOrientation(LinearLayout.HORIZONTAL);
         panel.setBackgroundColor(0xEE111111);
-        panel.setPadding(36, 24, 36, 24);
+        panel.setPadding(36, 20, 36, 20);
+        leftCol = new LinearLayout(this);
+        leftCol.setOrientation(LinearLayout.VERTICAL);
+        rightCol = new LinearLayout(this);
+        rightCol.setOrientation(LinearLayout.VERTICAL);
+        rightCol.setPadding(28, 0, 0, 0);
+        panel.addView(leftCol, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.35f));
+        panel.addView(rightCol, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
         TextView t = new TextView(this);
         t.setText("Ajustes");
         t.setTextColor(0xFFFFFFFF);
         t.setTextSize(17);
-        panel.addView(t);
+        leftCol.addView(t);
 
-        optionRow("Filtro xBR (bordes suaves)", "xbr", 0, 4, new String[]{"No", "1", "2", "3", "4"});
-        optionRow("Grano (intensidad)", "grain", 0, 3, new String[]{"No", "1", "2", "3"});
+        optionRow("Filtro xBR", "xbr", 0, 4, new String[]{"No", "1", "2", "3", "4"});
+        optionRow("Grano", "grain", 0, 3, new String[]{"No", "1", "2", "3"});
         optionRow("Tamaño del grano", "gsz2", 1, 4, new String[]{"1", "2", "3", "4"});
-        optionRow("Grano de Samus (intensidad)", "sgrain", 0, 3, new String[]{"No", "1", "2", "3"});
-        optionRow("Tamaño del grano de Samus", "ssize", 1, 2, new String[]{"1", "2"});
-        optionRow("Color (más oscuro y serio)", "color", 0, 4, new String[]{"No", "1", "2", "3", "4"});
-        optionRow("Luces (devuelve brillo a lo claro)", "luces", 0, 4, new String[]{"No", "1", "2", "3", "4"});
-        optionRow("Halo de luz (disparos y brillos de sprites)", "halo", 0, 4, new String[]{"No", "1", "2", "3", "4"});
-        optionRow("Halo HUD (menú y mapa de la esquina)", "hud", 0, 4, new String[]{"No", "1", "2", "3", "4"});
-        optionRow("Sonido (más grave)", "audio", 0, 3, new String[]{"No", "1", "2", "3"});
+        optionRow("Color oscuro", "color", 0, 4, new String[]{"No", "1", "2", "3", "4"});
+        optionRow("Luces", "luces", 0, 4, new String[]{"No", "1", "2", "3", "4"});
+        optionRow("Halo de luz", "halo", 0, 4, new String[]{"No", "1", "2", "3", "4"});
+        optionRow("Halo HUD", "hud", 0, 4, new String[]{"No", "1", "2", "3", "4"});
+        optionRow("Sonido grave", "audio", 0, 3, new String[]{"No", "1", "2", "3"});
 
-        // ---- slots ----
-        panel.addView(label("Cargar combinación"));
+        // ---- columna derecha: slots y estados
+        rightCol.addView(label("Cargar combinación"));
         LinearLayout load = new LinearLayout(this);
         load.setOrientation(LinearLayout.HORIZONTAL);
         for (int i = 1; i <= 5; i++) {
@@ -389,9 +424,9 @@ public class MainActivity extends Activity {
             });
             load.addView(b);
         }
-        panel.addView(load);
+        rightCol.addView(load);
 
-        panel.addView(label("Guardar la combinación actual en"));
+        rightCol.addView(label("Guardar combinación en"));
         LinearLayout save = new LinearLayout(this);
         save.setOrientation(LinearLayout.HORIZONTAL);
         for (int i = 1; i <= 5; i++) {
@@ -409,9 +444,9 @@ public class MainActivity extends Activity {
             });
             save.addView(b);
         }
-        panel.addView(save);
+        rightCol.addView(save);
 
-        panel.addView(label("Estado del juego: guardar en"));
+        rightCol.addView(label("Estado del juego: guardar en"));
         LinearLayout ss1 = new LinearLayout(this);
         ss1.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout ss2 = new LinearLayout(this);
@@ -425,20 +460,26 @@ public class MainActivity extends Activity {
             lb.setOnClickListener(v -> stateAction(slot, 2));
             ss2.addView(lb);
         }
-        panel.addView(ss1);
-        panel.addView(label("Estado del juego: cargar de"));
-        panel.addView(ss2);
+        rightCol.addView(ss1);
+        rightCol.addView(label("Estado del juego: cargar de"));
+        rightCol.addView(ss2);
+
+        Button pad = small("Botones del control");
+        pad.setOnClickListener(v -> showButtonMap());
+        LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        plp.topMargin = 20;
+        rightCol.addView(pad, plp);
 
         Button close = small("Cerrar");
         close.setOnClickListener(v -> { root.removeView(panelHolder); panelHolder = null; panel = null; });
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        clp.topMargin = 16;
-        panel.addView(close, clp);
+        clp.topMargin = 24;
+        rightCol.addView(close, clp);
 
         android.widget.ScrollView sv = new android.widget.ScrollView(this);
         sv.setBackgroundColor(0xEE111111);
         sv.addView(panel, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        int w = (int) (getResources().getDisplayMetrics().widthPixels * 0.8f);
+        int w = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w,
                 ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER);
         root.addView(sv, lp);
@@ -472,27 +513,103 @@ public class MainActivity extends Activity {
     @Override protected void onPause() { super.onPause(); stopGame(); showMenuIfNeeded(); }
     private void showMenuIfNeeded() { if (view != null) { view = null; showMenu(); } }
 
-    // ---- mando fisico ----
-    private static int map(int code) {
-        switch (code) {
-            case KeyEvent.KEYCODE_BUTTON_A: return Controls.A;
-            case KeyEvent.KEYCODE_BUTTON_B: return Controls.B;
-            case KeyEvent.KEYCODE_BUTTON_X: return Controls.B;
-            case KeyEvent.KEYCODE_BUTTON_Y: return Controls.A;
-            case KeyEvent.KEYCODE_BUTTON_L1: return Controls.L;
-            case KeyEvent.KEYCODE_BUTTON_R1: return Controls.R;
-            case KeyEvent.KEYCODE_BUTTON_START: return Controls.START;
-            case KeyEvent.KEYCODE_BUTTON_SELECT: return Controls.SELECT;
-            case KeyEvent.KEYCODE_DPAD_UP: return Controls.UP;
-            case KeyEvent.KEYCODE_DPAD_DOWN: return Controls.DOWN;
-            case KeyEvent.KEYCODE_DPAD_LEFT: return Controls.LEFT;
-            case KeyEvent.KEYCODE_DPAD_RIGHT: return Controls.RIGHT;
-            default: return 0;
+    // ---- mando fisico (con botones reasignables) ----
+    private static final int[] BITS = {Controls.A, Controls.B, Controls.L, Controls.R, Controls.START, Controls.SELECT,
+            Controls.UP, Controls.DOWN, Controls.LEFT, Controls.RIGHT};
+    private static final String[] BNAMES = {"A", "B", "L", "R", "START", "SELECT", "Arriba", "Abajo", "Izquierda", "Derecha"};
+    private final java.util.HashMap<Integer, Integer> keyMap = new java.util.HashMap<>();
+    private boolean mapLoaded = false;
+    private int captureBit = 0;
+    private android.app.AlertDialog captureDlg;
+
+    private void loadMap() {
+        if (mapLoaded) return;
+        mapLoaded = true;
+        keyMap.clear();
+        String sv = getPreferences(MODE_PRIVATE).getString("padmap", null);
+        if (sv != null && sv.length() > 0) {
+            for (String it : sv.split(",")) {
+                String[] p = it.split(":");
+                if (p.length == 2) keyMap.put(Integer.parseInt(p[0]), Integer.parseInt(p[1]));
+            }
+        } else {
+            resetMap();
         }
     }
 
+    private void resetMap() {
+        keyMap.clear();
+        keyMap.put(KeyEvent.KEYCODE_BUTTON_A, Controls.A);
+        keyMap.put(KeyEvent.KEYCODE_BUTTON_B, Controls.B);
+        keyMap.put(KeyEvent.KEYCODE_BUTTON_X, Controls.B);
+        keyMap.put(KeyEvent.KEYCODE_BUTTON_Y, Controls.A);
+        keyMap.put(KeyEvent.KEYCODE_BUTTON_L1, Controls.L);
+        keyMap.put(KeyEvent.KEYCODE_BUTTON_R1, Controls.R);
+        keyMap.put(KeyEvent.KEYCODE_BUTTON_START, Controls.START);
+        keyMap.put(KeyEvent.KEYCODE_BUTTON_SELECT, Controls.SELECT);
+        keyMap.put(KeyEvent.KEYCODE_DPAD_UP, Controls.UP);
+        keyMap.put(KeyEvent.KEYCODE_DPAD_DOWN, Controls.DOWN);
+        keyMap.put(KeyEvent.KEYCODE_DPAD_LEFT, Controls.LEFT);
+        keyMap.put(KeyEvent.KEYCODE_DPAD_RIGHT, Controls.RIGHT);
+        saveMap();
+    }
+
+    private void saveMap() {
+        StringBuilder sb = new StringBuilder();
+        for (java.util.Map.Entry<Integer, Integer> en : keyMap.entrySet()) {
+            if (sb.length() > 0) sb.append(',');
+            sb.append(en.getKey()).append(':').append(en.getValue());
+        }
+        getPreferences(MODE_PRIVATE).edit().putString("padmap", sb.toString()).apply();
+    }
+
+    private String keysFor(int bit) {
+        StringBuilder sb = new StringBuilder();
+        for (java.util.Map.Entry<Integer, Integer> en : keyMap.entrySet()) {
+            if (en.getValue() == bit) {
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(KeyEvent.keyCodeToString(en.getKey()).replace("KEYCODE_", ""));
+            }
+        }
+        return sb.length() == 0 ? "—" : sb.toString();
+    }
+
+    private void showButtonMap() {
+        loadMap();
+        String[] items = new String[BITS.length];
+        for (int i = 0; i < BITS.length; i++) items[i] = BNAMES[i] + "  →  " + keysFor(BITS[i]);
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Botones del control (toca uno y luego presiona la tecla)")
+                .setItems(items, (d, which) -> {
+                    captureBit = BITS[which];
+                    captureDlg = new android.app.AlertDialog.Builder(this)
+                            .setTitle(BNAMES[which])
+                            .setMessage("Presiona ahora el botón del control que quieres usar…")
+                            .setNegativeButton("Cancelar", (dd, w) -> captureBit = 0)
+                            .setOnCancelListener(dd -> captureBit = 0)
+                            .show();
+                })
+                .setNeutralButton("Restablecer", (d, w) -> { resetMap(); Toast.makeText(this, "Botones restablecidos", Toast.LENGTH_SHORT).show(); })
+                .setPositiveButton("Cerrar", null)
+                .show();
+    }
+
     @Override public boolean dispatchKeyEvent(KeyEvent e) {
-        int k = map(e.getKeyCode());
+        loadMap();
+        int code = e.getKeyCode();
+        if (captureBit != 0 && e.getAction() == KeyEvent.ACTION_DOWN && code != KeyEvent.KEYCODE_BACK
+                && code != KeyEvent.KEYCODE_VOLUME_UP && code != KeyEvent.KEYCODE_VOLUME_DOWN) {
+            java.util.Iterator<java.util.Map.Entry<Integer, Integer>> it = keyMap.entrySet().iterator();
+            while (it.hasNext()) if (it.next().getValue() == captureBit) it.remove();
+            keyMap.put(code, captureBit);
+            saveMap();
+            captureBit = 0;
+            if (captureDlg != null) { captureDlg.dismiss(); captureDlg = null; }
+            Toast.makeText(this, "Asignado: " + KeyEvent.keyCodeToString(code).replace("KEYCODE_", ""), Toast.LENGTH_SHORT).show();
+            return true;
+        }
+        Integer kb = keyMap.get(code);
+        int k = kb == null ? 0 : kb;
         if (k != 0 && controls != null) {
             if (e.getAction() == KeyEvent.ACTION_DOWN) padKeys |= k; else if (e.getAction() == KeyEvent.ACTION_UP) padKeys &= ~k;
             controls.setPadKeys(padKeys);

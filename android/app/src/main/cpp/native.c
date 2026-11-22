@@ -40,6 +40,8 @@ static int forceOne = 0;
 static void* rwBuf[RW_N];
 static int rwHead = 0, rwCount = 0, rwTick = 0;
 static volatile int rwReq = 0;
+static volatile int cheatLife = 0;
+static int lastEn = -1, lastMis = -1, lastSup = -1, lastPb = -1;
 static volatile int haloPal = 0xFFFF;   // paletas de sprite que reciben halo (bit = numero de paleta)
 
 static void rwSnap(void) {
@@ -58,6 +60,7 @@ static void rwBack(void) {
 	int steps = rwCount < RW_BACK ? rwCount : RW_BACK;
 	int idx = (rwHead - steps + RW_N) % RW_N;
 	if (core->loadState(core, rwBuf[idx])) {
+		lastEn = lastMis = lastSup = lastPb = -1;
 		rwHead = (idx + 1) % RW_N;
 		rwCount = rwCount - steps + 1;
 		forceOne = 1;
@@ -222,7 +225,7 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 			                 : mCoreLoadStateNamed(core, vf, SAVESTATE_SAVEDATA);
 			vf->close(vf);
 			lastResult = ok ? 1 : -1;
-			if (ok && a == 2) { forceOne = 1; rwCount = 0; }
+			if (ok && a == 2) { forceOne = 1; rwCount = 0; lastEn = lastMis = lastSup = lastPb = -1; }
 		}
 	}
 	if (rwReq) {
@@ -235,6 +238,34 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 		core->runFrame(core);
 		frames++;
 		trackScroll();
+		if (cheatLife) {
+			// energia actual en 0x03001536, maxima en 0x03001530 (16 bits). Si baja, se restaura.
+			int cur = core->busRead16(core, 0x03001536);
+			int mx = core->busRead16(core, 0x03001530);
+			if (mx > 0 && cur <= mx) {
+				if (lastEn >= 0 && cur < lastEn) {
+					core->busWrite16(core, 0x03001536, (uint16_t) lastEn);
+				} else {
+					lastEn = cur;
+				}
+			}
+			// municion: misiles (16 bits, 0x03001538), super misiles (8 bits, 0x0300153A), bombas de poder (8 bits, 0x0300153B)
+			int mm = core->busRead16(core, 0x03001532);
+			int mc = core->busRead16(core, 0x03001538);
+			if (mm > 0 && mc <= mm) {
+				if (lastMis >= 0 && mc < lastMis) core->busWrite16(core, 0x03001538, (uint16_t) lastMis); else lastMis = mc;
+			}
+			int sm = core->busRead8(core, 0x03001534), sc = core->busRead8(core, 0x0300153A);
+			if (sm > 0 && sc <= sm) {
+				if (lastSup >= 0 && sc < lastSup) core->busWrite8(core, 0x0300153A, (uint8_t) lastSup); else lastSup = sc;
+			}
+			int pm = core->busRead8(core, 0x03001535), pc = core->busRead8(core, 0x0300153B);
+			if (pm > 0 && pc <= pm) {
+				if (lastPb >= 0 && pc < lastPb) core->busWrite8(core, 0x0300153B, (uint8_t) lastPb); else lastPb = pc;
+			}
+		} else {
+			lastEn = lastMis = lastSup = lastPb = -1;
+		}
 		if (!wasForced && ++rwTick >= RW_EVERY) {
 			rwTick = 0;
 			rwSnap();
@@ -375,3 +406,6 @@ Java_cl_zmremake_Native_rewind(JNIEnv* env, jclass cls) { rwReq = 1; }
 
 JNIEXPORT void JNICALL
 Java_cl_zmremake_Native_setHaloPal(JNIEnv* env, jclass cls, jint mask) { haloPal = mask & 0xFFFF; }
+
+JNIEXPORT void JNICALL
+Java_cl_zmremake_Native_setCheatLife(JNIEnv* env, jclass cls, jboolean on) { cheatLife = on ? 1 : 0; lastEn = lastMis = lastSup = lastPb = -1; }

@@ -19,5 +19,6 @@ public final class Native {
     public static native int stateResult();
     public static native void setPaused(boolean on);
     public static native void rewind();
+    public static native void setCheatLife(boolean on);
     public static native void setHaloPal(int mask);
 }
