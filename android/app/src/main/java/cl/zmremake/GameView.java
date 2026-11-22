@@ -110,7 +110,7 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
                 + "  float gt = smoothstep(0.70, 0.92, v) * smoothstep(0.25, 0.55, s);"
                 + "  float isN = step(0.9, m); float isF = step(0.7, m) * (1.0 - isN); float isD = step(0.57, m) * (1.0 - step(0.7, m)); float isH = step(0.45, m) * (1.0 - step(0.57, m));"
                 + "  float gd = smoothstep(0.40, 0.70, v) * smoothstep(0.35, 0.60, s);"
-                + "  float g = isN * gt * uWN + isF * 0.8 * uWN + isD * gd * uWN + isH * gt * uWH;"
+                + "  float g = isN * gt * uWN + isF * 0.8 * uWN + isD * gd * uWH + isH * gt * uWH;"
                 + "  gl_FragColor = vec4(c * g, 1.0); }";
         String fsBlur = "precision mediump float; varying vec2 vUv; uniform sampler2D uSrc; uniform vec2 uStep;"
                 + "void main(){ vec3 a = texture2D(uSrc, vUv).rgb * 0.2270;"

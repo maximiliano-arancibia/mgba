@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
             final String[] opts = {"Modo juego (limpio)", "Modo test (con diagnóstico)"};
             new android.app.AlertDialog.Builder(this)
                     .setTitle("Configuración")
-                    .setSingleChoiceItems(opts, pref("mode", 0), (d, which) -> {
+                    .setSingleChoiceItems(opts, pref("mode", 1), (d, which) -> {
                         getPreferences(MODE_PRIVATE).edit().putInt("mode", which).apply();
                         d.dismiss();
                         Toast.makeText(this, which == 0 ? "Modo juego" : "Modo test", Toast.LENGTH_SHORT).show();
@@ -80,7 +80,7 @@ public class MainActivity extends Activity {
         });
         FrameLayout.LayoutParams clp0 = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
-        clp0.topMargin = 440;
+        clp0.bottomMargin = 260;
         root.addView(cfg, clp0);
 
         SharedPreferences sp = getPreferences(MODE_PRIVATE);
@@ -152,7 +152,7 @@ public class MainActivity extends Activity {
         controls = new Controls(this);
         root.addView(view);
         root.addView(controls);
-        final boolean testMode = pref("mode", 0) == 1;
+        final boolean testMode = pref("mode", 1) == 1;
         dbg = null;
         if (testMode) {
             dbg = new TextView(this);
