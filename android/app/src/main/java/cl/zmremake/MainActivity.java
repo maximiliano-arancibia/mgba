@@ -193,10 +193,10 @@ public class MainActivity extends Activity {
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        String[] names = {"No", "1", "2", "3"};
-        final Button[] bs = new Button[4];
+        String[] names = {"No", "1", "2", "3", "4"};
+        final Button[] bs = new Button[5];
         int cur = getPreferences(MODE_PRIVATE).getInt("xbr", 0);
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 5; i++) {
             final int lv = i;
             bs[i] = new Button(this);
             bs[i].setText(names[i]);
@@ -204,7 +204,7 @@ public class MainActivity extends Activity {
             bs[i].setOnClickListener(v -> {
                 getPreferences(MODE_PRIVATE).edit().putInt("xbr", lv).apply();
                 if (view != null) view.setXbr(lv);
-                for (int j = 0; j < 4; j++) bs[j].setAlpha(j == lv ? 1f : 0.45f);
+                for (int j = 0; j < 5; j++) bs[j].setAlpha(j == lv ? 1f : 0.45f);
             });
             row.addView(bs[i]);
         }

@@ -129,8 +129,8 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         GLES20.glUseProgram(prog);
         GLES20.glUniform1i(uTex, 0);
         int lv = xbr;
-        float[] tol = {0f, 0.10f, 0.25f, 0.40f};
-        float[] cut = {0f, 0.40f, 0.50f, 0.60f};
+        float[] tol = {0f, 0.10f, 0.28f, 0.45f, 0.65f};
+        float[] cut = {0f, 0.40f, 0.55f, 0.70f, 0.85f};
         GLES20.glUniform1f(uOn, lv > 0 ? 1f : 0f);
         GLES20.glUniform1f(uTol, tol[lv]);
         GLES20.glUniform1f(uCut, cut[lv]);
