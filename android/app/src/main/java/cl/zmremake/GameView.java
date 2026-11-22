@@ -18,7 +18,10 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
     private final Object lock = new Object();
     private boolean dirty = false;
 
-    private int prog, tex, aPos, aUv, uTex, uOn, uTol, uCut, uAA;
+    private int prog, tex, aPos, aUv, uTex, uOn, uTol, uCut, uAA, uGrainL, uCellL, uSeedL;
+    private volatile int grain = 0;
+    private int frameNo = 0;
+    public void setGrain(int level) { grain = level; requestRender(); }
     private volatile int xbr = 0;
     private float quadPx = 1f;
     public void setXbr(int level) { xbr = level; requestRender(); }
@@ -51,27 +54,36 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
     @Override public void onSurfaceCreated(GL10 gl, EGLConfig cfg) {
         String vs = "attribute vec2 aPos; attribute vec2 aUv; varying vec2 vUv;"
                 + "void main(){ vUv = aUv; gl_Position = vec4(aPos, 0.0, 1.0); }";
-        String fs = "precision mediump float; varying vec2 vUv; uniform sampler2D uTex;"
-                + "uniform float uOn, uTol, uCut, uAA;"
+        String fs = "#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n"
+                + "varying vec2 vUv; uniform sampler2D uTex;"
+                + "uniform float uOn, uTol, uCut, uAA, uGrain, uCell, uSeed;"
                 + "const vec2 SZ = vec2(240.0, 160.0);"
                 + "vec3 px(vec2 c){ return texture2D(uTex, (floor(c) + 0.5) / SZ).rgb; }"
                 + "bool eq(vec3 a, vec3 b){ return dot(abs(a - b), vec3(1.0)) < uTol; }"
+                + "float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + uSeed) * 43758.5453); }"
                 + "void main(){"
                 + "  vec2 pos = vUv * SZ; vec2 base = floor(pos); vec2 f = fract(pos);"
                 + "  vec3 P = px(base);"
-                + "  if (uOn < 0.5) { gl_FragColor = vec4(P, 1.0); return; }"
-                + "  vec3 A = px(base + vec2(0.0,-1.0)), B = px(base + vec2(1.0,0.0)),"
-                + "       C = px(base + vec2(-1.0,0.0)), D = px(base + vec2(0.0,1.0));"
-                + "  bool left = f.x < 0.5, top = f.y < 0.5;"
-                + "  vec3 n1 = top ? A : D; vec3 o1 = top ? D : A;"
-                + "  vec3 n2 = left ? C : B; vec3 o2 = left ? B : C;"
-                + "  float u = left ? f.x : 1.0 - f.x; float v = top ? f.y : 1.0 - f.y;"
                 + "  vec3 o = P;"
-                + "  if (eq(n1, n2) && !eq(n1, o1) && !eq(n2, o2)) {"
-                + "    float w = 1.0 - smoothstep(uCut - uAA, uCut + uAA, u + v);"
-                + "    o = mix(P, n1, w);"
+                + "  if (uOn > 0.5) {"
+                + "    vec3 A = px(base + vec2(0.0,-1.0)), B = px(base + vec2(1.0,0.0)),"
+                + "         C = px(base + vec2(-1.0,0.0)), D = px(base + vec2(0.0,1.0));"
+                + "    bool left = f.x < 0.5, top = f.y < 0.5;"
+                + "    vec3 n1 = top ? A : D; vec3 o1 = top ? D : A;"
+                + "    vec3 n2 = left ? C : B; vec3 o2 = left ? B : C;"
+                + "    float u = left ? f.x : 1.0 - f.x; float v = top ? f.y : 1.0 - f.y;"
+                + "    if (eq(n1, n2) && !eq(n1, o1) && !eq(n2, o2)) {"
+                + "      float w = 1.0 - smoothstep(uCut - uAA, uCut + uAA, u + v);"
+                + "      o = mix(P, n1, w);"
+                + "    }"
                 + "  }"
-                + "  gl_FragColor = vec4(o, 1.0);"
+                + "  if (uGrain > 0.0) {"
+                + "    float lum = dot(o, vec3(0.299, 0.587, 0.114));"
+                + "    float wgt = clamp(1.0 - abs(lum - 0.55) * 1.3, 0.25, 1.0);"
+                + "    float n = hash(floor(gl_FragCoord.xy / uCell)) * 2.0 - 1.0;"
+                + "    o += n * uGrain * wgt;"
+                + "  }"
+                + "  gl_FragColor = vec4(clamp(o, 0.0, 1.0), 1.0);"
                 + "}";
         prog = GLES20.glCreateProgram();
         GLES20.glAttachShader(prog, shader(GLES20.GL_VERTEX_SHADER, vs));
@@ -84,6 +96,9 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         uTol = GLES20.glGetUniformLocation(prog, "uTol");
         uCut = GLES20.glGetUniformLocation(prog, "uCut");
         uAA = GLES20.glGetUniformLocation(prog, "uAA");
+        uGrainL = GLES20.glGetUniformLocation(prog, "uGrain");
+        uCellL = GLES20.glGetUniformLocation(prog, "uCell");
+        uSeedL = GLES20.glGetUniformLocation(prog, "uSeed");
 
         int[] t = new int[1];
         GLES20.glGenTextures(1, t, 0);
@@ -134,6 +149,11 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         GLES20.glUniform1f(uOn, lv > 0 ? 1f : 0f);
         GLES20.glUniform1f(uTol, tol[lv]);
         GLES20.glUniform1f(uCut, cut[lv]);
+        float[] gr = {0f, 0.030f, 0.055f, 0.085f};
+        GLES20.glUniform1f(uGrainL, gr[grain]);
+        GLES20.glUniform1f(uCellL, Math.max(1f, Math.round(quadPx / W * 0.6f)));
+        if (d) frameNo++;
+        GLES20.glUniform1f(uSeedL, (frameNo % 997) * 1.37f);
         GLES20.glUniform1f(uAA, Math.max(0.01f, (float) W / quadPx * 0.7f));
         quad.position(0);
         GLES20.glVertexAttribPointer(aPos, 2, GLES20.GL_FLOAT, false, 16, quad);

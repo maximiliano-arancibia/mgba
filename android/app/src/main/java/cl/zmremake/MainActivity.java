@@ -140,6 +140,7 @@ public class MainActivity extends Activity {
         dbg.setTextSize(12);
         root.addView(dbg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
         view.setXbr(getPreferences(MODE_PRIVATE).getInt("xbr", 0));
+        view.setGrain(getPreferences(MODE_PRIVATE).getInt("grain", 0));
         TextView gear = new TextView(this);
         gear.setText("⚙");
         gear.setTextColor(0xFFFFFFFF);
@@ -209,6 +210,30 @@ public class MainActivity extends Activity {
             row.addView(bs[i]);
         }
         panel.addView(row);
+
+        TextView lbl2 = new TextView(this);
+        lbl2.setText("Grano");
+        lbl2.setTextColor(0xFFCCCCCC);
+        lbl2.setPadding(0, 20, 0, 6);
+        panel.addView(lbl2);
+        LinearLayout row2 = new LinearLayout(this);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        String[] gn = {"No", "1", "2", "3"};
+        final Button[] gb = new Button[4];
+        int curG = getPreferences(MODE_PRIVATE).getInt("grain", 0);
+        for (int i = 0; i < 4; i++) {
+            final int lv = i;
+            gb[i] = new Button(this);
+            gb[i].setText(gn[i]);
+            gb[i].setAlpha(i == curG ? 1f : 0.45f);
+            gb[i].setOnClickListener(v -> {
+                getPreferences(MODE_PRIVATE).edit().putInt("grain", lv).apply();
+                if (view != null) view.setGrain(lv);
+                for (int j = 0; j < 4; j++) gb[j].setAlpha(j == lv ? 1f : 0.45f);
+            });
+            row2.addView(gb[i]);
+        }
+        panel.addView(row2);
 
         Button close = new Button(this);
         close.setText("Cerrar");
