@@ -282,8 +282,8 @@ public class MainActivity extends Activity {
         sb.append("\nBlanco = sprite sin paleta clara: " + st[21]);
         legend.setText(sb);
     }
-    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "audio", "halo", "hud"};
-    private static final int[] DEFS = {0, 0, 3, 0, 0, 0, 0, 0};
+    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "audio", "halo", "hud", "sgrain", "ssize"};
+    private static final int[] DEFS = {0, 0, 3, 0, 0, 0, 0, 0, 0, 2};
 
     private int pref(String k, int d) { return getPreferences(MODE_PRIVATE).getInt(k, d); }
 
@@ -297,6 +297,8 @@ public class MainActivity extends Activity {
         view.setLuces(pref("luces", 0));
         view.setHalo(pref("halo", 0));
         view.setHud(pref("hud", 0));
+        view.setSprGrain(pref("sgrain", 0));
+        view.setSprSize(pref("ssize", 2));
     }
 
     private TextView label(String t) {
@@ -358,6 +360,8 @@ public class MainActivity extends Activity {
         optionRow("Filtro xBR (bordes suaves)", "xbr", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Grano (intensidad)", "grain", 0, 3, new String[]{"No", "1", "2", "3"});
         optionRow("Tamaño del grano", "gsz2", 1, 4, new String[]{"1", "2", "3", "4"});
+        optionRow("Grano de Samus (intensidad)", "sgrain", 0, 3, new String[]{"No", "1", "2", "3"});
+        optionRow("Tamaño del grano de Samus", "ssize", 1, 2, new String[]{"1", "2"});
         optionRow("Color (más oscuro y serio)", "color", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Luces (devuelve brillo a lo claro)", "luces", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Halo de luz (disparos y brillos de sprites)", "halo", 0, 4, new String[]{"No", "1", "2", "3", "4"});

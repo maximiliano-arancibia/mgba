@@ -5,8 +5,20 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "gba/renderers/software-private.h"
 
+// ZM: ruido por pixel de sprite (ligado a la parte del sprite, se mueve con ella)
+uint8_t zmObjNz[GBA_VIDEO_HORIZONTAL_PIXELS];
+uint8_t zmNz[GBA_VIDEO_HORIZONTAL_PIXELS];
+uint8_t zmNzBuf[GBA_VIDEO_HORIZONTAL_PIXELS * GBA_VIDEO_VERTICAL_PIXELS];
+static int zmLY, zmCurIdx;
+static inline uint8_t zmNoise8(int idx, int lx, int ly) {
+	uint32_t h = (uint32_t) idx * 0x9E3779B1u ^ (uint32_t) lx * 0x85EBCA6Bu ^ (uint32_t) ly * 0xC2B2AE35u;
+	h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12; h *= 0x297A2D39u; h ^= h >> 15;
+	return (uint8_t) (h >> 8);
+}
+
 #define SPRITE_NORMAL_LOOP(DEPTH, TYPE) \
 	SPRITE_YBASE_ ## DEPTH(inY); \
+	zmLY = inY; \
 	unsigned tileData; \
 	for (; outX < condition; ++outX, inX += xOffset) { \
 		SPRITE_XBASE_ ## DEPTH(inX); \
@@ -15,6 +27,7 @@
 
 #define SPRITE_MOSAIC_LOOP(DEPTH, TYPE) \
 	SPRITE_YBASE_ ## DEPTH(inY); \
+	zmLY = inY; \
 	unsigned tileData; \
 	for (; outX < condition; ++outX, inX += xOffset) { \
 		int localX = inX - xOffset * (outX % mosaicH); \
@@ -42,6 +55,7 @@
 		} \
 		\
 		SPRITE_YBASE_ ## DEPTH(localY); \
+		zmLY = localY; \
 		SPRITE_XBASE_ ## DEPTH(localX); \
 		SPRITE_DRAW_PIXEL_ ## DEPTH ## _ ## TYPE(localX); \
 	}
@@ -66,6 +80,7 @@
 		} \
 		\
 		SPRITE_YBASE_ ## DEPTH(localY); \
+		zmLY = localY; \
 		SPRITE_XBASE_ ## DEPTH(localX); \
 		SPRITE_DRAW_PIXEL_ ## DEPTH ## _ ## TYPE(localX); \
 	}
@@ -87,6 +102,7 @@ uint8_t zmBgTmp;
 		if (tileData) { \
 			renderer->spriteLayer[outX] = palette[tileData] | flags; \
 			zmObjPal[outX] = zmCurPal; \
+			zmObjNz[outX] = zmNoise8(zmCurIdx, (int) (localX), zmLY); \
 		} else if (current != FLAG_UNWRITTEN) { \
 			renderer->spriteLayer[outX] = (current & ~(FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)) | (flags & (FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)); \
 		} \
@@ -101,6 +117,7 @@ uint8_t zmBgTmp;
 			unsigned color = (renderer->row[outX] & FLAG_OBJWIN) ? objwinPalette[tileData] : palette[tileData]; \
 			renderer->spriteLayer[outX] = color | flags; \
 			zmObjPal[outX] = zmCurPal; \
+			zmObjNz[outX] = zmNoise8(zmCurIdx, (int) (localX), zmLY); \
 		} else if (current != FLAG_UNWRITTEN) { \
 			renderer->spriteLayer[outX] = (current & ~(FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)) | (flags & (FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)); \
 		} \
@@ -129,6 +146,7 @@ uint8_t zmBgTmp;
 		if (tileData) { \
 			renderer->spriteLayer[outX] = palette[tileData] | flags; \
 			zmObjPal[outX] = zmCurPal; \
+			zmObjNz[outX] = zmNoise8(zmCurIdx, (int) (localX), zmLY); \
 		} else if (current != FLAG_UNWRITTEN) { \
 			renderer->spriteLayer[outX] = (current & ~(FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)) | (flags & (FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)); \
 		} \
@@ -143,6 +161,7 @@ uint8_t zmBgTmp;
 			unsigned color = (renderer->row[outX] & FLAG_OBJWIN) ? objwinPalette[tileData] : palette[tileData]; \
 			renderer->spriteLayer[outX] = color | flags; \
 			zmObjPal[outX] = zmCurPal; \
+			zmObjNz[outX] = zmNoise8(zmCurIdx, (int) (localX), zmLY); \
 		} else if (current != FLAG_UNWRITTEN) { \
 			renderer->spriteLayer[outX] = (current & ~(FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)) | (flags & (FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)); \
 		} \
@@ -162,6 +181,7 @@ uint8_t zmBgTmp;
 
 int GBAVideoSoftwareRendererPreprocessSprite(struct GBAVideoSoftwareRenderer* renderer, struct GBAObj* sprite, int index, int y) {
 	zmCurPal = (uint8_t) GBAObjAttributesCGetPalette(sprite->c);
+	zmCurIdx = index;
 	int width = GBAVideoObjSizes[GBAObjAttributesAGetShape(sprite->a) * 4 + GBAObjAttributesBGetSize(sprite->b)][0];
 	int height = GBAVideoObjSizes[GBAObjAttributesAGetShape(sprite->a) * 4 + GBAObjAttributesBGetSize(sprite->b)][1];
 	int start = renderer->start;

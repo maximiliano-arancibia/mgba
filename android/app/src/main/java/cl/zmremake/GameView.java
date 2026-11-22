@@ -15,7 +15,7 @@ import javax.microedition.khronos.opengles.GL10;
 public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
     static final int W = 240, H = 160;
     private final ByteBuffer frame = ByteBuffer.allocateDirect(W * H * 4).order(ByteOrder.nativeOrder());
-    private final ByteBuffer mask = ByteBuffer.allocateDirect(W * H).order(ByteOrder.nativeOrder());
+    private final ByteBuffer mask = ByteBuffer.allocateDirect(W * H * 3).order(ByteOrder.nativeOrder());
     public ByteBuffer maskBuffer() { return mask; }
     private final Object lock = new Object();
     private boolean dirty = false;
@@ -35,6 +35,10 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
     public void setHud(int v) { hudLv = v; requestRender(); }
     public void setHalo(int v) { haloLv = v; requestRender(); }
     private int uGlowL, uHaloL;
+    private int texSpr, uSprL, uGrainSL, uSubKL;
+    private volatile int sgrain = 0, ssize = 1;
+    public void setSprGrain(int v) { sgrain = v; requestRender(); }
+    public void setSprSize(int v) { ssize = v; requestRender(); }
     private int texMask, texA, texB, fboA, fboB, progExt, progBlur;
     private boolean glowOk = false;
     private FloatBuffer fullQuad;
@@ -125,6 +129,8 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         texMask = smallTex(GLES20.GL_NEAREST, false);
         GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
         GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_LUMINANCE, W, H, 0, GLES20.GL_LUMINANCE, GLES20.GL_UNSIGNED_BYTE, null);
+        texSpr = smallTex(GLES20.GL_NEAREST, false);
+        GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_LUMINANCE_ALPHA, W, H, 0, GLES20.GL_LUMINANCE_ALPHA, GLES20.GL_UNSIGNED_BYTE, null);
         texA = smallTex(GLES20.GL_LINEAR, false);
         GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, W, H, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
         texB = smallTex(GLES20.GL_LINEAR, false);
@@ -191,7 +197,7 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         String fs = "#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n"
                 + "varying vec2 vUv; uniform sampler2D uTex;"
                 + "uniform float uOn, uTol, uCut, uAA, uGrain, uCell, uSeed, uColK, uColS, uLuces, uHalo;"
-                + "uniform vec2 uScroll; uniform sampler2D uGlow;"
+                + "uniform vec2 uScroll; uniform sampler2D uGlow, uSpr; uniform float uGrainS, uSubK;"
                 + "const vec2 SZ = vec2(240.0, 160.0);"
                 + "vec3 px(vec2 c){ return texture2D(uTex, (floor(c) + 0.5) / SZ).rgb; }"
                 + "bool eq(vec3 a, vec3 b){ return dot(abs(a - b), vec3(1.0)) < uTol; }"
@@ -225,9 +231,16 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
                 + "    o = mix(g, o, lw);"
                 + "  }"
                 + "  if (uHalo > 0.0) { o += texture2D(uGlow, vUv).rgb * uHalo; }"
-                + "  if (uGrain > 0.0) {"
-                + "    float vmax = max(o0.r, max(o0.g, o0.b));"
-                + "    float wgt = smoothstep(0.22, 0.50, vmax);"
+                + "  vec4 sp = texture2D(uSpr, (base + 0.5) / SZ);"
+                + "  float vmax = max(o0.r, max(o0.g, o0.b));"
+                + "  float wgt = smoothstep(0.22, 0.50, vmax);"
+                + "  if (sp.a > 0.9) {"
+                + "    if (uGrainS > 0.0) {"
+                + "      vec2 sc = floor(f * uSubK);"
+                + "      float n = hash(vec2(sp.r * 255.0, sc.x + sc.y * 7.0 + 0.5)) * 2.0 - 1.0;"
+                + "      o += n * uGrainS * wgt;"
+                + "    }"
+                + "  } else if (sp.a < 0.2 && uGrain > 0.0) {"
                 + "    float n = hash(floor((pos + uScroll) / uCell)) * 2.0 - 1.0;"
                 + "    o += n * uGrain * wgt;"
                 + "  }"
@@ -254,6 +267,9 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
 
         uGlowL = GLES20.glGetUniformLocation(prog, "uGlow");
         uHaloL = GLES20.glGetUniformLocation(prog, "uHalo");
+        uSprL = GLES20.glGetUniformLocation(prog, "uSpr");
+        uGrainSL = GLES20.glGetUniformLocation(prog, "uGrainS");
+        uSubKL = GLES20.glGetUniformLocation(prog, "uSubK");
         int[] t = new int[1];
         GLES20.glGenTextures(1, t, 0);
         tex = t[0];
@@ -300,6 +316,11 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
             mask.position(0);
             GLES20.glTexSubImage2D(GLES20.GL_TEXTURE_2D, 0, 0, 0, W, H,
                     GLES20.GL_LUMINANCE, GLES20.GL_UNSIGNED_BYTE, mask);
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE3);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texSpr);
+            mask.position(W * H);
+            GLES20.glTexSubImage2D(GLES20.GL_TEXTURE_2D, 0, 0, 0, W, H,
+                    GLES20.GL_LUMINANCE_ALPHA, GLES20.GL_UNSIGNED_BYTE, mask);
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         }
         int halo = master ? haloLv : 0;
@@ -316,6 +337,13 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         GLES20.glUseProgram(prog);
         GLES20.glUniform1i(uTex, 0);
         GLES20.glUniform1i(uGlowL, 2);
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE3);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texSpr);
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glUniform1i(uSprL, 3);
+        float[] sgr = {0f, 0.035f, 0.060f, 0.090f};
+        GLES20.glUniform1f(uGrainSL, master ? sgr[sgrain] : 0f);
+        GLES20.glUniform1f(uSubKL, ssize == 1 ? 2f : 4f);
         float[] hv = {0f, 0.6f, 1.5f, 3.0f, 5.0f};
         GLES20.glUniform1f(uHaloL, useGlow ? Math.max(hv[halo], hv[hud]) : 0f);
         boolean m = master;

@@ -21,6 +21,8 @@ uint8_t zmFlagBuf[GBA_VIDEO_HORIZONTAL_PIXELS * GBA_VIDEO_VERTICAL_PIXELS];
 uint8_t zmSrc[GBA_VIDEO_HORIZONTAL_PIXELS];
 extern uint8_t zmPal[];
 extern uint8_t zmPalBuf[];
+extern uint8_t zmNz[];
+extern uint8_t zmNzBuf[];
 
 static void GBAVideoSoftwareRendererInit(struct GBAVideoRenderer* renderer);
 static void GBAVideoSoftwareRendererDeinit(struct GBAVideoRenderer* renderer);
@@ -715,6 +717,7 @@ static void GBAVideoSoftwareRendererDrawScanline(struct GBAVideoRenderer* render
 		for (x = 0; x < GBA_VIDEO_HORIZONTAL_PIXELS; ++x) {
 			zmFlagBuf[y * GBA_VIDEO_HORIZONTAL_PIXELS + x] = zmSrc[x];
 			zmPalBuf[y * GBA_VIDEO_HORIZONTAL_PIXELS + x] = zmPal[x];
+			zmNzBuf[y * GBA_VIDEO_HORIZONTAL_PIXELS + x] = zmNz[x];
 		}
 	}
 	if (softwareRenderer->stereo) {

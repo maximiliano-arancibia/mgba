@@ -23,6 +23,7 @@ static unsigned long frames = 0;
 
 extern uint8_t zmFlagBuf[];
 extern uint8_t zmPalBuf[];
+extern uint8_t zmNzBuf[];
 static int testMode = 0;
 static mColor* dbgBuf = NULL;
 static int stats[38];
@@ -263,9 +264,13 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 			uint8_t f = zmFlagBuf[i];
 			int x = i % GBA_W, y = i / GBA_W;
 			uint8_t m = 0;
+			uint8_t* sp = mdst + GBA_W * GBA_H + 2 * i;   // (ruido, tipo): tipo 255 = Samus, 128 = otro sprite, 0 = fondo
+			sp[0] = 0; sp[1] = 0;
 			if (((f & 0xFC) != 0xFC) && !(f & 0x08)) {
 				int pal = zmPalBuf[i] & 15;
 				int hud = (x < 100 && y < 24);   // texto y numeros de vida: nunca brillan
+				sp[0] = zmNzBuf[i];
+				sp[1] = (pal == 0 && !hud) ? 255 : 128;
 				if (!hud) {
 					// 255 = halo normal, 128 = halo HUD (menu y mapa), 192 = halo normal forzado (cabina)
 					if (menu) m = 128;
