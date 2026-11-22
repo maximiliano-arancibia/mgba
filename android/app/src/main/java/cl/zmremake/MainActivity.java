@@ -316,8 +316,9 @@ public class MainActivity extends Activity {
 
         android.widget.ScrollView sv = new android.widget.ScrollView(this);
         sv.setBackgroundColor(0xEE111111);
-        sv.addView(panel);
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+        sv.addView(panel, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        int w = (int) (getResources().getDisplayMetrics().widthPixels * 0.8f);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w,
                 ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER);
         root.addView(sv, lp);
         panelHolder = sv;
