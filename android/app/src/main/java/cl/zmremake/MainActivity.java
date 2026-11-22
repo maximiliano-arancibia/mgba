@@ -252,8 +252,8 @@ public class MainActivity extends Activity {
         sb.append("\nBlanco = sprite sin paleta clara: " + st[21]);
         legend.setText(sb);
     }
-    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "audio"};
-    private static final int[] DEFS = {0, 0, 3, 0, 0, 0};
+    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "audio", "halo"};
+    private static final int[] DEFS = {0, 0, 3, 0, 0, 0, 0};
 
     private int pref(String k, int d) { return getPreferences(MODE_PRIVATE).getInt(k, d); }
 
@@ -265,6 +265,7 @@ public class MainActivity extends Activity {
         view.setGrainSize(pref("gsz2", 3));
         view.setColor(pref("color", 0));
         view.setLuces(pref("luces", 0));
+        view.setHalo(pref("halo", 0));
     }
 
     private TextView label(String t) {
@@ -328,6 +329,7 @@ public class MainActivity extends Activity {
         optionRow("Tamaño del grano", "gsz2", 1, 4, new String[]{"1", "2", "3", "4"});
         optionRow("Color (más oscuro y serio)", "color", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Luces (devuelve brillo a lo claro)", "luces", 0, 4, new String[]{"No", "1", "2", "3", "4"});
+        optionRow("Halo de luz (disparos y brillos de sprites)", "halo", 0, 3, new String[]{"No", "1", "2", "3"});
         optionRow("Sonido (más grave)", "audio", 0, 3, new String[]{"No", "1", "2", "3"});
 
         // ---- slots ----

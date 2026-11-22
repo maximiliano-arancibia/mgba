@@ -7,7 +7,7 @@ public final class Native {
     public static native boolean open(String romPath, String savePath);
     public static native int audioRate();
     public static native void setKeys(int keys);
-    public static native int runFrame(ByteBuffer video, short[] audio);
+    public static native int runFrame(ByteBuffer video, ByteBuffer mask, short[] audio);
     public static native void close();
     public static native String info();
     public static native int scrollX();

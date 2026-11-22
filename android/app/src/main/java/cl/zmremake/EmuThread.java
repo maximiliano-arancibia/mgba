@@ -70,7 +70,7 @@ public class EmuThread extends Thread {
         int cnt = 0;
         while (running) {
             long a = System.nanoTime();
-            int n = Native.runFrame(view.frameBuffer(), audio);
+            int n = Native.runFrame(view.frameBuffer(), view.maskBuffer(), audio);
             acc += System.nanoTime() - a;
             if (++cnt == 60) {
                 long now = System.nanoTime();

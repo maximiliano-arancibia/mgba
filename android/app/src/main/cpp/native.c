@@ -185,7 +185,7 @@ Java_cl_zmremake_Native_setKeys(JNIEnv* env, jclass cls, jint keys) {
 // Avanza un cuadro. Copia el video (RGBA 8888) al buffer directo y el audio
 // (estereo, int16) al arreglo. Devuelve cuantos pares de muestras hay.
 JNIEXPORT jint JNICALL
-Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jshortArray audio) {
+Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject mask, jshortArray audio) {
 	if (!core) {
 		return 0;
 	}
@@ -216,6 +216,14 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jshortA
 			memcpy(dst, dbgBuf, GBA_W * GBA_H * sizeof(mColor));
 		} else {
 			memcpy(dst, videoBuf, GBA_W * GBA_H * sizeof(mColor));
+		}
+	}
+
+	uint8_t* mdst = (*env)->GetDirectBufferAddress(env, mask);
+	if (mdst) {
+		for (int i = 0; i < GBA_W * GBA_H; i++) {
+			uint8_t f = zmFlagBuf[i];
+			mdst[i] = (((f & 0xFC) != 0xFC) && !(f & 0x08)) ? 255 : 0;
 		}
 	}
 
