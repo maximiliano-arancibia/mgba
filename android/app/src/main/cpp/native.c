@@ -116,9 +116,11 @@ Java_cl_zmremake_Native_info(JNIEnv* env, jclass cls) {
 	if (!core || !videoBuf) {
 		return (*env)->NewStringUTF(env, "sin nucleo");
 	}
-	char title[32] = {0}, code[16] = {0};
-	core->getGameTitle(core, title);
-	core->getGameCode(core, code);
+	struct mGameInfo gi;
+	memset(&gi, 0, sizeof(gi));
+	core->getGameInfo(core, &gi);
+	const char* title = gi.title;
+	const char* code = gi.code;
 	unsigned nonwhite = 0, total = 0;
 	for (int i = 0; i < GBA_W * GBA_H; i += 97) {
 		total++;
