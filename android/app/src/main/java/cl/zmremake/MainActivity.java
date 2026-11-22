@@ -138,6 +138,21 @@ public class MainActivity extends Activity {
         dbg.setBackgroundColor(0xAA000000);
         dbg.setTextSize(12);
         root.addView(dbg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
+        EmuThread.speed = 1;
+        TextView ff = new TextView(this);
+        ff.setText("» x1");
+        ff.setTextColor(0xFFFFFFFF);
+        ff.setTextSize(16);
+        ff.setPadding(36, 18, 36, 18);
+        ff.setBackgroundColor(0x66000000);
+        ff.setOnClickListener(v -> {
+            EmuThread.speed = EmuThread.speed == 1 ? 2 : (EmuThread.speed == 2 ? 4 : 1);
+            ff.setText("» x" + EmuThread.speed);
+        });
+        FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
+        flp.topMargin = 140; flp.rightMargin = 24;
+        root.addView(ff, flp);
         h.post(tick);
         emu = new EmuThread(view);
         emu.start();

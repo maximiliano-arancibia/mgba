@@ -9,6 +9,7 @@ public class EmuThread extends Thread {
     private final GameView view;
     private volatile boolean running = true;
     public static volatile float fps = 0, runMs = 0;
+    public static volatile int speed = 1;
 
     public EmuThread(GameView view) { this.view = view; }
 
@@ -52,13 +53,13 @@ public class EmuThread extends Thread {
             view.frameReady();
             int r = Native.audioRate();
             if (r != curRate && r > 0) { curRate = r; track.setPlaybackRate(r); }
-            if (n > 0) track.write(audio, 0, n * 2, AudioTrack.WRITE_NON_BLOCKING);
+            if (n > 0 && speed == 1) track.write(audio, 0, n * 2, AudioTrack.WRITE_NON_BLOCKING);
             // reloj propio: esperar hasta el siguiente cuadro
             long now2 = System.nanoTime();
             if (now2 - next > 100_000_000L) next = now2; // nos atrasamos mucho: reiniciar
             long wait = next - now2;
             if (wait > 0) java.util.concurrent.locks.LockSupport.parkNanos(wait);
-            next += period;
+            next += period / speed;
         }
         track.stop();
         track.release();
