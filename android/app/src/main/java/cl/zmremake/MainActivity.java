@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
     private final Handler h = new Handler();
     private final Runnable tick = new Runnable() {
         public void run() {
-            if (dbg != null && emu != null) dbg.setText(Native.info());
+            if (dbg != null && emu != null) dbg.setText(Native.info() + String.format("\nfps=%.1f  runFrame=%.1f ms", EmuThread.fps, EmuThread.runMs));
             h.postDelayed(this, 500);
         }
     };
@@ -91,11 +91,29 @@ public class MainActivity extends Activity {
             File dir = new File(getFilesDir(), "roms");
             dir.mkdirs();
             File out = new File(dir, name);
-            try (InputStream in = getContentResolver().openInputStream(uri);
-                 OutputStream os = new FileOutputStream(out)) {
-                byte[] buf = new byte[1 << 16];
-                int n;
-                while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+            try (InputStream raw = getContentResolver().openInputStream(uri)) {
+                InputStream in = raw;
+                if (name.toLowerCase().endsWith(".zip")) {
+                    java.util.zip.ZipInputStream zin = new java.util.zip.ZipInputStream(raw);
+                    java.util.zip.ZipEntry ze;
+                    boolean found = false;
+                    while ((ze = zin.getNextEntry()) != null) {
+                        String n2 = ze.getName().toLowerCase();
+                        if (!ze.isDirectory() && (n2.endsWith(".gba") || n2.endsWith(".agb") || n2.endsWith(".bin"))) {
+                            name = new File(ze.getName()).getName().replaceAll("[^A-Za-z0-9._-]", "_");
+                            out = new File(dir, name);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) throw new Exception("el zip no trae una ROM .gba");
+                    in = zin;
+                }
+                try (OutputStream os = new FileOutputStream(out)) {
+                    byte[] buf = new byte[1 << 16];
+                    int n;
+                    while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+                }
             }
             startGame(out);
         } catch (Exception e) {

@@ -8,6 +8,7 @@ import android.media.AudioTrack;
 public class EmuThread extends Thread {
     private final GameView view;
     private volatile boolean running = true;
+    public static volatile float fps = 0, runMs = 0;
 
     public EmuThread(GameView view) { this.view = view; }
 
@@ -17,6 +18,7 @@ public class EmuThread extends Thread {
     }
 
     @Override public void run() {
+        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
         int rate = Native.audioRate();
         int minBuf = AudioTrack.getMinBufferSize(rate, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT);
         AudioTrack track = new AudioTrack.Builder()
@@ -32,8 +34,18 @@ public class EmuThread extends Thread {
                 .build();
         track.play();
         short[] audio = new short[4096];
+        long t0 = System.nanoTime(), acc = 0;
+        int cnt = 0;
         while (running) {
+            long a = System.nanoTime();
             int n = Native.runFrame(view.frameBuffer(), audio);
+            acc += System.nanoTime() - a;
+            if (++cnt == 60) {
+                long now = System.nanoTime();
+                fps = 60f * 1e9f / (now - t0);
+                runMs = acc / 60f / 1e6f;
+                t0 = now; acc = 0; cnt = 0;
+            }
             view.frameReady();
             if (n > 0) track.write(audio, 0, n * 2);
             else try { Thread.sleep(16); } catch (InterruptedException ignored) { }
