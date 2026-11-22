@@ -141,7 +141,7 @@ public class MainActivity extends Activity {
         root.addView(dbg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
         view.setXbr(getPreferences(MODE_PRIVATE).getInt("xbr", 0));
         view.setGrain(getPreferences(MODE_PRIVATE).getInt("grain", 0));
-        view.setGrainSize(getPreferences(MODE_PRIVATE).getInt("gsize", 1));
+        view.setGrainSize(getPreferences(MODE_PRIVATE).getInt("gsz2", 3));
         TextView gear = new TextView(this);
         gear.setText("⚙");
         gear.setTextColor(0xFFFFFFFF);
@@ -243,17 +243,17 @@ public class MainActivity extends Activity {
         panel.addView(lbl3);
         LinearLayout row3 = new LinearLayout(this);
         row3.setOrientation(LinearLayout.HORIZONTAL);
-        final Button[] sb = new Button[4];
-        int curS = getPreferences(MODE_PRIVATE).getInt("gsize", 1);
-        for (int i = 1; i <= 3; i++) {
+        final Button[] sb = new Button[5];
+        int curS = getPreferences(MODE_PRIVATE).getInt("gsz2", 3);
+        for (int i = 1; i <= 4; i++) {
             final int lv = i;
             sb[i] = new Button(this);
             sb[i].setText(String.valueOf(i));
             sb[i].setAlpha(i == curS ? 1f : 0.45f);
             sb[i].setOnClickListener(v -> {
-                getPreferences(MODE_PRIVATE).edit().putInt("gsize", lv).apply();
+                getPreferences(MODE_PRIVATE).edit().putInt("gsz2", lv).apply();
                 if (view != null) view.setGrainSize(lv);
-                for (int j = 1; j <= 3; j++) sb[j].setAlpha(j == lv ? 1f : 0.45f);
+                for (int j = 1; j <= 4; j++) sb[j].setAlpha(j == lv ? 1f : 0.45f);
             });
             row3.addView(sb[i]);
         }

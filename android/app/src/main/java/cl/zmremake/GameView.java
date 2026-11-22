@@ -64,7 +64,7 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
                 + "const vec2 SZ = vec2(240.0, 160.0);"
                 + "vec3 px(vec2 c){ return texture2D(uTex, (floor(c) + 0.5) / SZ).rgb; }"
                 + "bool eq(vec3 a, vec3 b){ return dot(abs(a - b), vec3(1.0)) < uTol; }"
-                + "float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }"
+                + "float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }"
                 + "void main(){"
                 + "  vec2 pos = vUv * SZ; vec2 base = floor(pos); vec2 f = fract(pos);"
                 + "  vec3 P = px(base);"
@@ -82,8 +82,8 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
                 + "    }"
                 + "  }"
                 + "  if (uGrain > 0.0) {"
-                + "    float lum = dot(o, vec3(0.299, 0.587, 0.114));"
-                + "    float wgt = clamp(1.0 - abs(lum - 0.55) * 1.3, 0.25, 1.0);"
+                + "    float vmax = max(o.r, max(o.g, o.b));"
+                + "    float wgt = smoothstep(0.22, 0.50, vmax);"
                 + "    float n = hash(floor((pos + uScroll) / uCell)) * 2.0 - 1.0;"
                 + "    o += n * uGrain * wgt;"
                 + "  }"
@@ -155,7 +155,9 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         GLES20.glUniform1f(uTol, tol[lv]);
         GLES20.glUniform1f(uCut, cut[lv]);
         float[] gr = {0f, 0.025f, 0.045f, 0.070f};
-        float[] cellSz = {1f, 1f, 2f, 3f};
+        float c1 = Math.min(1f, (float) W / quadPx);   // un pixel de pantalla
+        float rr = (float) Math.pow(2f / c1, 1.0 / 3.0);
+        float[] cellSz = {1f, c1, c1 * rr, c1 * rr * rr, 2f};
         GLES20.glUniform1f(uGrainL, gr[grain]);
         GLES20.glUniform1f(uCellL, cellSz[gsize]);
         GLES20.glUniform2f(uScrollL, scx, scy);
