@@ -25,7 +25,7 @@ extern uint8_t zmFlagBuf[];
 extern uint8_t zmPalBuf[];
 static int testMode = 0;
 static mColor* dbgBuf = NULL;
-static int stats[22];
+static int stats[38];
 static char pendPath[512];
 static volatile int pendAction = 0;   // 1 = guardar estado, 2 = cargar estado
 static volatile int lastResult = 0;
@@ -89,9 +89,13 @@ static void buildDebug(void) {
 			out[0] = out[1] = out[2] = v;
 		} else if (f & 0x08) {
 			int bg = (f >> 4) & 3;
+			int bk = zmPalBuf[i] & 15;
 			stats[bg]++;
-			float v = 0.12f + lum * 0.65f;
-			out[0] = v * BGT[bg][0]; out[1] = v * BGT[bg][1]; out[2] = v * BGT[bg][2];
+			stats[22 + bk]++;
+			float v = 0.10f + lum * 0.55f;
+			out[0] = v * ((PALCOL[bk] & 0xFF) / 255.f);
+			out[1] = v * (((PALCOL[bk] >> 8) & 0xFF) / 255.f);
+			out[2] = v * (((PALCOL[bk] >> 16) & 0xFF) / 255.f);
 		} else {
 			int pal = zmPalBuf[i] & 15;
 			stats[5 + pal]++;
@@ -264,10 +268,11 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 				int pal = zmPalBuf[i] & 15;
 				int hud = (x < 100 && y < 24);   // texto y numeros de vida: nunca brillan
 				if (!hud) {
-					if (menu) m = 255;
+					// 255 = halo normal, 128 = halo HUD (menu y mapa), 192 = halo normal forzado (cabina)
+					if (menu) m = 128;
 					else if (pal == 2 || pal == 3 || pal == 4 || pal == 6) m = 255;
-					else if (pal == 5 && x >= 205 && y < 28) m = 255;   // mapa de la esquina
-					else if (pal == 8 && cabina) m = 255;
+					else if (pal == 5 && x >= 205 && y < 28) m = 128;   // mapa de la esquina
+					else if (pal == 8 && cabina) m = 192;
 				}
 			} else if ((f & 0x08) && ((f >> 4) & 3) == 0 && !menu) {
 				// lava: pixeles rojo-naranja muy saturados y claros en la capa BG0
@@ -337,7 +342,7 @@ Java_cl_zmremake_Native_setTest(JNIEnv* env, jclass cls, jboolean on) { testMode
 
 JNIEXPORT void JNICALL
 Java_cl_zmremake_Native_testStats(JNIEnv* env, jclass cls, jintArray out) {
-	(*env)->SetIntArrayRegion(env, out, 0, 22, stats);
+	(*env)->SetIntArrayRegion(env, out, 0, 38, stats);
 }
 
 JNIEXPORT void JNICALL

@@ -42,11 +42,12 @@ static inline unsigned _darken(unsigned color, int y);
 extern uint8_t zmSrc[];
 extern uint8_t zmObjPal[];
 extern uint8_t zmPal[];
+extern uint8_t zmBgTmp;
 static inline void _zmWin(struct GBAVideoSoftwareRenderer* renderer, uint32_t* pixel, uint32_t color) {
 	ptrdiff_t i = pixel - renderer->row;
 	if (i >= 0 && i < GBA_VIDEO_HORIZONTAL_PIXELS) {
 		zmSrc[i] = (uint8_t) (color >> 24);
-		zmPal[i] = zmObjPal[i];
+		zmPal[i] = ((color >> 24) & 0x08) ? zmBgTmp : zmObjPal[i];
 	}
 }
 
@@ -101,6 +102,7 @@ static inline void _compositeNoBlendNoObjwin(struct GBAVideoSoftwareRenderer* re
 }
 
 #define COMPOSITE_16_OBJWIN(BLEND, IDX)  \
+	zmBgTmp = (uint8_t) (paletteData >> 4); \
 	if (background->objwinForceEnable || (!(current & FLAG_OBJWIN)) == background->objwinOnly) { \
 		unsigned color; \
 		unsigned mergedFlags = flags; \
@@ -116,6 +118,7 @@ static inline void _compositeNoBlendNoObjwin(struct GBAVideoSoftwareRenderer* re
 	}
 
 #define COMPOSITE_16_NO_OBJWIN(BLEND, IDX) \
+	zmBgTmp = (uint8_t) (paletteData >> 4); \
 	{ \
 		unsigned color; \
 		if ((current & (FLAG_IS_BACKGROUND | FLAG_REBLEND)) == FLAG_REBLEND) { \
@@ -127,6 +130,7 @@ static inline void _compositeNoBlendNoObjwin(struct GBAVideoSoftwareRenderer* re
 	}
 
 #define COMPOSITE_256_OBJWIN(BLEND, IDX) \
+	zmBgTmp = 0; \
 	if (background->objwinForceEnable || (!(current & FLAG_OBJWIN)) == background->objwinOnly) { \
 		unsigned color; \
 		unsigned mergedFlags = flags; \
@@ -142,6 +146,7 @@ static inline void _compositeNoBlendNoObjwin(struct GBAVideoSoftwareRenderer* re
 	}
 
 #define COMPOSITE_256_NO_OBJWIN(BLEND, IDX) \
+	zmBgTmp = 0; \
 	{ \
 		unsigned color; \
 		if ((current & (FLAG_IS_BACKGROUND | FLAG_REBLEND)) == FLAG_REBLEND) { \

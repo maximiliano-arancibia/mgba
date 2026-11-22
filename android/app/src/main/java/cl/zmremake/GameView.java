@@ -31,7 +31,8 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
     public void setGrainSize(int s) { gsize = s; requestRender(); }
     public void setScroll(int x, int y) { scx = ((x % 6144) + 6144) % 6144; scy = ((y % 6144) + 6144) % 6144; }
     private int frameNo = 0;
-    private volatile int haloLv = 0;
+    private volatile int haloLv = 0, hudLv = 0;
+    public void setHud(int v) { hudLv = v; requestRender(); }
     public void setHalo(int v) { haloLv = v; requestRender(); }
     private int uGlowL, uHaloL;
     private int texMask, texA, texB, fboA, fboB, progExt, progBlur;
@@ -102,11 +103,13 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         glowOk = true;
         String vs = "attribute vec2 aPos; attribute vec2 aUv; varying vec2 vUv;"
                 + "void main(){ vUv = aUv; gl_Position = vec4(aPos, 0.0, 1.0); }";
-        String fsExt = "precision mediump float; varying vec2 vUv; uniform sampler2D uTex; uniform sampler2D uMask;"
+        String fsExt = "precision mediump float; varying vec2 vUv; uniform sampler2D uTex; uniform sampler2D uMask; uniform float uWN, uWH;"
                 + "void main(){ vec3 c = texture2D(uTex, vUv).rgb; float m = texture2D(uMask, vUv).r;"
                 + "  float v = max(c.r, max(c.g, c.b)); float mn = min(c.r, min(c.g, c.b));"
                 + "  float s = (v - mn) / max(v, 0.001);"
-                + "  float g = smoothstep(0.70, 0.92, v) * smoothstep(0.25, 0.55, s) * m;"
+                + "  float gt = smoothstep(0.70, 0.92, v) * smoothstep(0.25, 0.55, s);"
+                + "  float isN = step(0.9, m); float isF = step(0.7, m) * (1.0 - isN); float isH = step(0.45, m) * (1.0 - step(0.7, m));"
+                + "  float g = isN * gt * uWN + isF * 0.8 * uWN + isH * gt * uWH;"
                 + "  gl_FragColor = vec4(c * g, 1.0); }";
         String fsBlur = "precision mediump float; varying vec2 vUv; uniform sampler2D uSrc; uniform vec2 uStep;"
                 + "void main(){ vec3 a = texture2D(uSrc, vUv).rgb * 0.2270;"
@@ -146,6 +149,7 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
     }
 
     /** Extrae lo brillante de los sprites y lo difumina en baja resolucion (resultado en texA). */
+    private static final float[] HV = {0f, 0.6f, 1.5f, 3.0f, 5.0f};
     private void runGlowPasses() {
         GLES20.glViewport(0, 0, W, H);
         // 1) extraer
@@ -157,6 +161,9 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texMask);
         GLES20.glUniform1i(GLES20.glGetUniformLocation(progExt, "uMask"), 1);
+        float mxh = Math.max(HV[haloLv], HV[hudLv]);
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(progExt, "uWN"), mxh > 0 ? HV[haloLv] / mxh : 0f);
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(progExt, "uWH"), mxh > 0 ? HV[hudLv] / mxh : 0f);
         drawFull(progExt);
         // 2) difuminar horizontal A -> B, vertical B -> A
         GLES20.glUseProgram(progBlur);
@@ -295,7 +302,8 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         }
         int halo = master ? haloLv : 0;
-        boolean useGlow = glowOk && halo > 0;
+        int hud = master ? hudLv : 0;
+        boolean useGlow = glowOk && (halo > 0 || hud > 0);
         if (useGlow) runGlowPasses();
         GLES20.glClearColor(0f, 0f, 0f, 1f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
@@ -308,7 +316,7 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         GLES20.glUniform1i(uTex, 0);
         GLES20.glUniform1i(uGlowL, 2);
         float[] hv = {0f, 0.6f, 1.5f, 3.0f, 5.0f};
-        GLES20.glUniform1f(uHaloL, useGlow ? hv[halo] : 0f);
+        GLES20.glUniform1f(uHaloL, useGlow ? Math.max(hv[halo], hv[hud]) : 0f);
         boolean m = master;
         int lv = m ? xbr : 0;
         float[] tol = {0f, 0.10f, 0.28f, 0.45f, 0.65f};

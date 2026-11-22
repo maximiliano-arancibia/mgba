@@ -187,7 +187,7 @@ public class MainActivity extends Activity {
         legend = new TextView(this);
         legend.setTextColor(0xFFFFFFFF);
         legend.setBackgroundColor(0xAA000000);
-        legend.setTextSize(13);
+        legend.setTextSize(11);
         legend.setPadding(16, 8, 16, 8);
         legend.setVisibility(View.GONE);
         FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -207,7 +207,7 @@ public class MainActivity extends Activity {
     private boolean fxOn = true, testOn = false, pausedOn = false;
     private TextView legend;
     private LinearLayout bar;
-    private final int[] st = new int[22];
+    private final int[] st = new int[38];
     private static final int[] PALC = {0xE6194B, 0x3CB44B, 0xFFE119, 0x0082C8, 0xF58231, 0x911EB4, 0x46F0F0, 0xF032E6,
             0xD2F53C, 0xFABEBE, 0x008080, 0xAA6E28, 0x800000, 0xAAFFC3, 0x000080, 0x808080};
     private static final int[] BGC = {0x7FA6FF, 0x7FFF8C, 0xFF8C73, 0xFFF273, 0x808080};
@@ -230,13 +230,21 @@ public class MainActivity extends Activity {
         if (legend == null || !testOn) return;
         Native.testStats(st);
         android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
-        sb.append("Fondo: ");
+        sb.append("Capas: ");
         String[] bn = {"BG0", "BG1", "BG2", "BG3"};
         for (int i = 0; i < 4; i++) {
             if (st[i] > 0) {
                 int s0 = sb.length();
                 sb.append("■ " + bn[i] + " (" + st[i] + ")  ");
                 sb.setSpan(new android.text.style.ForegroundColorSpan(0xFF000000 | BGC[i]), s0, s0 + 1, 0);
+            }
+        }
+        sb.append("\nFondo, paletas: ");
+        for (int p = 0; p < 16; p++) {
+            if (st[22 + p] > 0) {
+                int s0 = sb.length();
+                sb.append("■ " + p + " (" + st[22 + p] + ")  ");
+                sb.setSpan(new android.text.style.ForegroundColorSpan(0xFF000000 | PALC[p]), s0, s0 + 1, 0);
             }
         }
         sb.append("\nSprites, paletas: ");
@@ -253,8 +261,8 @@ public class MainActivity extends Activity {
         sb.append("\nBlanco = sprite sin paleta clara: " + st[21]);
         legend.setText(sb);
     }
-    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "audio", "halo"};
-    private static final int[] DEFS = {0, 0, 3, 0, 0, 0, 0};
+    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "audio", "halo", "hud"};
+    private static final int[] DEFS = {0, 0, 3, 0, 0, 0, 0, 0};
 
     private int pref(String k, int d) { return getPreferences(MODE_PRIVATE).getInt(k, d); }
 
@@ -267,6 +275,7 @@ public class MainActivity extends Activity {
         view.setColor(pref("color", 0));
         view.setLuces(pref("luces", 0));
         view.setHalo(pref("halo", 0));
+        view.setHud(pref("hud", 0));
     }
 
     private TextView label(String t) {
@@ -331,6 +340,7 @@ public class MainActivity extends Activity {
         optionRow("Color (más oscuro y serio)", "color", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Luces (devuelve brillo a lo claro)", "luces", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Halo de luz (disparos y brillos de sprites)", "halo", 0, 4, new String[]{"No", "1", "2", "3", "4"});
+        optionRow("Halo HUD (menú y mapa de la esquina)", "hud", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Sonido (más grave)", "audio", 0, 3, new String[]{"No", "1", "2", "3"});
 
         // ---- slots ----

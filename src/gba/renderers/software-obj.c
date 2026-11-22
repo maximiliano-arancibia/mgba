@@ -74,6 +74,7 @@ uint8_t zmObjPal[GBA_VIDEO_HORIZONTAL_PIXELS];
 uint8_t zmPal[GBA_VIDEO_HORIZONTAL_PIXELS];
 uint8_t zmPalBuf[GBA_VIDEO_HORIZONTAL_PIXELS * GBA_VIDEO_VERTICAL_PIXELS];
 static uint8_t zmCurPal;
+uint8_t zmBgTmp;
 
 #define SPRITE_XBASE_16(localX) unsigned xBase = (localX & ~0x7) * 4 + ((localX >> 1) & 2);
 #define SPRITE_YBASE_16(localY) unsigned yBase = (localY & ~0x7) * stride + (localY & 0x7) * 4 + maskHi;
