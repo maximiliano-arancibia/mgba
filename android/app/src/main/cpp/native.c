@@ -259,7 +259,6 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 			if (((f & 0xFC) != 0xFC) && !(f & 0x08)) cnt[zmPalBuf[i] & 15]++;
 		}
 		int menu = (cnt[0] == 0 && cnt[5] > 0);   // sin Samus pero con interfaz: pantalla de mapa/pausa
-		int cabina = cnt[8] > 2500;                // paleta 8 muy grande = cabina de guardado
 		for (int i = 0; i < GBA_W * GBA_H; i++) {
 			uint8_t f = zmFlagBuf[i];
 			int x = i % GBA_W, y = i / GBA_W;
@@ -272,8 +271,9 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 					if (menu) m = 128;
 					else if (pal == 2 || pal == 3 || pal == 4 || pal == 6) m = 255;
 					else if (pal == 5 && x >= 205 && y < 28) m = 128;   // mapa de la esquina
-					else if (pal == 8 && cabina) m = 192;
 				}
+			} else if ((f & 0x08) && ((f >> 4) & 3) == 1 && (zmPalBuf[i] & 15) == 1 && !menu) {
+				m = 160;   // puertas: paleta 1 del fondo; el filtro de color deja fuera el metal gris
 			} else if ((f & 0x08) && ((f >> 4) & 3) == 0 && !menu) {
 				// lava: pixeles rojo-naranja muy saturados y claros en la capa BG0
 				uint32_t raw = videoBuf[i];

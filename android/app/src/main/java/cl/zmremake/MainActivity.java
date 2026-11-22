@@ -66,6 +66,23 @@ public class MainActivity extends Activity {
         root.addView(open, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
 
+        Button cfg = new Button(this);
+        cfg.setText("Configuración");
+        cfg.setOnClickListener(v -> {
+            final String[] opts = {"Modo juego (limpio)", "Modo test (con diagnóstico)"};
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("Configuración")
+                    .setSingleChoiceItems(opts, pref("mode", 0), (d, which) -> {
+                        getPreferences(MODE_PRIVATE).edit().putInt("mode", which).apply();
+                        d.dismiss();
+                        Toast.makeText(this, which == 0 ? "Modo juego" : "Modo test", Toast.LENGTH_SHORT).show();
+                    }).show();
+        });
+        FrameLayout.LayoutParams clp0 = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+        clp0.topMargin = 440;
+        root.addView(cfg, clp0);
+
         SharedPreferences sp = getPreferences(MODE_PRIVATE);
         String last = sp.getString("last", null);
         if (last != null && new File(last).exists()) {
@@ -135,11 +152,15 @@ public class MainActivity extends Activity {
         controls = new Controls(this);
         root.addView(view);
         root.addView(controls);
-        dbg = new TextView(this);
-        dbg.setTextColor(0xFFFF00FF);
-        dbg.setBackgroundColor(0xAA000000);
-        dbg.setTextSize(12);
-        root.addView(dbg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
+        final boolean testMode = pref("mode", 0) == 1;
+        dbg = null;
+        if (testMode) {
+            dbg = new TextView(this);
+            dbg.setTextColor(0xFFFF00FF);
+            dbg.setBackgroundColor(0xAA000000);
+            dbg.setTextSize(12);
+            root.addView(dbg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
+        }
         fxOn = true;
         applyAll();
         bar = new LinearLayout(this);
@@ -169,7 +190,7 @@ public class MainActivity extends Activity {
             if (view != null) view.setMaster(fxOn && !testOn);
             if (legend != null) legend.setVisibility(testOn ? View.VISIBLE : View.GONE);
         });
-        bar.addView(tst);
+        if (testMode) bar.addView(tst);
         final TextView ps = barBtn("⏸", null);
         ps.setOnClickListener(v -> {
             pausedOn = !pausedOn;
