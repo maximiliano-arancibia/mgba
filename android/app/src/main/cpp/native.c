@@ -248,9 +248,36 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 
 	uint8_t* mdst = (*env)->GetDirectBufferAddress(env, mask);
 	if (mdst) {
+		// Cuenta de pixeles por paleta de sprite (para distinguir pantalla de juego, menu y cabina)
+		int cnt[16] = {0};
 		for (int i = 0; i < GBA_W * GBA_H; i++) {
 			uint8_t f = zmFlagBuf[i];
-			mdst[i] = (((f & 0xFC) != 0xFC) && !(f & 0x08) && ((haloPal >> (zmPalBuf[i] & 15)) & 1)) ? 255 : 0;
+			if (((f & 0xFC) != 0xFC) && !(f & 0x08)) cnt[zmPalBuf[i] & 15]++;
+		}
+		int menu = (cnt[0] == 0 && cnt[5] > 0);   // sin Samus pero con interfaz: pantalla de mapa/pausa
+		int cabina = cnt[8] > 2500;                // paleta 8 muy grande = cabina de guardado
+		for (int i = 0; i < GBA_W * GBA_H; i++) {
+			uint8_t f = zmFlagBuf[i];
+			int x = i % GBA_W, y = i / GBA_W;
+			uint8_t m = 0;
+			if (((f & 0xFC) != 0xFC) && !(f & 0x08)) {
+				int pal = zmPalBuf[i] & 15;
+				int hud = (x < 100 && y < 24);   // texto y numeros de vida: nunca brillan
+				if (!hud) {
+					if (menu) m = 255;
+					else if (pal == 2 || pal == 3 || pal == 4 || pal == 6) m = 255;
+					else if (pal == 5 && x >= 205 && y < 28) m = 255;   // mapa de la esquina
+					else if (pal == 8 && cabina) m = 255;
+				}
+			} else if ((f & 0x08) && ((f >> 4) & 3) == 0 && !menu) {
+				// lava: pixeles rojo-naranja muy saturados y claros en la capa BG0
+				uint32_t raw = videoBuf[i];
+				float r = (raw & 0xFF) / 255.f, g = ((raw >> 8) & 0xFF) / 255.f, b = ((raw >> 16) & 0xFF) / 255.f;
+				float mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+				float mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+				if (mx > 0.65f && mx - mn > 0.65f * mx && r >= mx - 0.001f && g < 0.75f * r && b < 0.45f * r) m = 255;
+			}
+			mdst[i] = m;
 		}
 	}
 
