@@ -10,4 +10,7 @@ public final class Native {
     public static native int runFrame(ByteBuffer video, short[] audio);
     public static native void close();
     public static native String info();
+    public static native int scrollX();
+    public static native int scrollY();
+    public static native int scrollBg();
 }

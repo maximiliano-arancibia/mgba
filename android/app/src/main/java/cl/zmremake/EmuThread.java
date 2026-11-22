@@ -50,6 +50,7 @@ public class EmuThread extends Thread {
                 runMs = acc / 60f / 1e6f;
                 t0 = now; acc = 0; cnt = 0;
             }
+            view.setScroll(Native.scrollX(), Native.scrollY());
             view.frameReady();
             int r = Native.audioRate();
             if (r != curRate && r > 0) { curRate = r; track.setPlaybackRate(r); }

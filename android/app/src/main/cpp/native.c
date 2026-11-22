@@ -7,6 +7,8 @@
 
 #include <mgba/core/core.h>
 #include <mgba/gba/core.h>
+#include <mgba/internal/gba/gba.h>
+#include <mgba/internal/gba/io.h>
 #include <mgba-util/audio-buffer.h>
 #include <mgba-util/vfs.h>
 
@@ -16,6 +18,38 @@
 static struct mCore* core = NULL;
 static mColor* videoBuf = NULL;
 static unsigned long frames = 0;
+
+// Seguimiento del scroll de las 4 capas de fondo (acumulado, sin saltos por el limite de 512)
+static int accX[4], accY[4], prevX[4], prevY[4];
+static float activity[4];
+static int curBg = 2;
+static int havePrev = 0;
+
+static void trackScroll(void) {
+	struct GBA* gba = core->board;
+	uint16_t dispcnt = gba->memory.io[GBA_REG(DISPCNT)];
+	for (int b = 0; b < 4; b++) {
+		int x = gba->memory.io[GBA_REG(BG0HOFS) + 2 * b] & 0x1FF;
+		int y = gba->memory.io[GBA_REG(BG0VOFS) + 2 * b] & 0x1FF;
+		if (havePrev) {
+			int dx = ((x - prevX[b] + 256) & 511) - 256;
+			int dy = ((y - prevY[b] + 256) & 511) - 256;
+			accX[b] += dx;
+			accY[b] += dy;
+			float a = (float) ((dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy));
+			activity[b] = activity[b] * 0.97f + ((dispcnt & (0x100 << b)) ? a : 0.f);
+		}
+		prevX[b] = x;
+		prevY[b] = y;
+	}
+	havePrev = 1;
+	int best = curBg;
+	for (int b = 0; b < 4; b++) {
+		if (activity[b] > activity[best] * 1.5f + 1.f) best = b;
+	}
+	curBg = best;
+}
+
 
 JNIEXPORT jboolean JNICALL
 Java_cl_zmremake_Native_open(JNIEnv* env, jclass cls, jstring romPath, jstring savePath) {
@@ -85,6 +119,7 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jshortA
 	}
 	core->runFrame(core);
 	frames++;
+	trackScroll();
 
 	void* dst = (*env)->GetDirectBufferAddress(env, video);
 	if (dst) {
@@ -130,3 +165,12 @@ Java_cl_zmremake_Native_info(JNIEnv* env, jclass cls) {
 	         title, code, frames, (unsigned) videoBuf[0], (unsigned) videoBuf[80 * GBA_W + 120], nonwhite, total);
 	return (*env)->NewStringUTF(env, out);
 }
+
+JNIEXPORT jint JNICALL
+Java_cl_zmremake_Native_scrollX(JNIEnv* env, jclass cls) { return accX[curBg]; }
+
+JNIEXPORT jint JNICALL
+Java_cl_zmremake_Native_scrollY(JNIEnv* env, jclass cls) { return accY[curBg]; }
+
+JNIEXPORT jint JNICALL
+Java_cl_zmremake_Native_scrollBg(JNIEnv* env, jclass cls) { return curBg; }

@@ -37,7 +37,7 @@ public class MainActivity extends Activity {
     private final Handler h = new Handler();
     private final Runnable tick = new Runnable() {
         public void run() {
-            if (dbg != null && emu != null) dbg.setText(Native.info() + String.format("\nfps=%.1f  runFrame=%.1f ms", EmuThread.fps, EmuThread.runMs));
+            if (dbg != null && emu != null) dbg.setText(Native.info() + String.format("\nfps=%.1f  runFrame=%.1f ms", EmuThread.fps, EmuThread.runMs) + "  capa=BG" + Native.scrollBg() + " scroll=" + Native.scrollX() + "," + Native.scrollY());
             h.postDelayed(this, 500);
         }
     };
@@ -141,6 +141,7 @@ public class MainActivity extends Activity {
         root.addView(dbg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
         view.setXbr(getPreferences(MODE_PRIVATE).getInt("xbr", 0));
         view.setGrain(getPreferences(MODE_PRIVATE).getInt("grain", 0));
+        view.setGrainSize(getPreferences(MODE_PRIVATE).getInt("gsize", 1));
         TextView gear = new TextView(this);
         gear.setText("⚙");
         gear.setTextColor(0xFFFFFFFF);
@@ -234,6 +235,29 @@ public class MainActivity extends Activity {
             row2.addView(gb[i]);
         }
         panel.addView(row2);
+
+        TextView lbl3 = new TextView(this);
+        lbl3.setText("Tamaño del grano");
+        lbl3.setTextColor(0xFFCCCCCC);
+        lbl3.setPadding(0, 20, 0, 6);
+        panel.addView(lbl3);
+        LinearLayout row3 = new LinearLayout(this);
+        row3.setOrientation(LinearLayout.HORIZONTAL);
+        final Button[] sb = new Button[4];
+        int curS = getPreferences(MODE_PRIVATE).getInt("gsize", 1);
+        for (int i = 1; i <= 3; i++) {
+            final int lv = i;
+            sb[i] = new Button(this);
+            sb[i].setText(String.valueOf(i));
+            sb[i].setAlpha(i == curS ? 1f : 0.45f);
+            sb[i].setOnClickListener(v -> {
+                getPreferences(MODE_PRIVATE).edit().putInt("gsize", lv).apply();
+                if (view != null) view.setGrainSize(lv);
+                for (int j = 1; j <= 3; j++) sb[j].setAlpha(j == lv ? 1f : 0.45f);
+            });
+            row3.addView(sb[i]);
+        }
+        panel.addView(row3);
 
         Button close = new Button(this);
         close.setText("Cerrar");
