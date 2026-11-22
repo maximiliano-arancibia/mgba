@@ -22,8 +22,16 @@ android {
     externalNativeBuild {
         cmake { path file('../../CMakeLists.txt'); version '3.22.1' }
     }
+    signingConfigs {
+        zm {
+            storeFile file('../zm.jks')
+            storePassword 'zmremake123'
+            keyAlias 'zm'
+            keyPassword 'zmremake123'
+        }
+    }
     buildTypes {
-        release { signingConfig signingConfigs.debug }
+        release { signingConfig signingConfigs.zm }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
