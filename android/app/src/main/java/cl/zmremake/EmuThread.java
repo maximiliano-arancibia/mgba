@@ -11,25 +11,31 @@ public class EmuThread extends Thread {
     public static volatile float fps = 0, runMs = 0;
     public static volatile int speed = 1;
     public static volatile int eq = 0;   // 0 = sin ecualizar, 1..3 = mas grave
-    private static final float[] BASS = {0f, 0.35f, 0.70f, 1.10f};
-    private static final float[] TREB = {0f, 9000f, 6500f, 4500f};
+    private static final float[] BASS = {0f, 0.5f, 1.0f, 1.8f};
+    private static final float[] TREB = {0f, 10000f, 7000f, 5000f};
     private float lb0, lb1, hc0, hc1;   // estados de los filtros (izq, der)
+
+    // limitador suave: por encima de 24000 se comprime en vez de cortar
+    private static short soft(float v) {
+        float m = Math.abs(v);
+        if (m > 24000f) m = 24000f + (m - 24000f) * 0.4f;
+        if (m > 32767f) m = 32767f;
+        return (short) (v < 0 ? -m : m);
+    }
 
     private void applyEq(short[] a, int frames, int rate) {
         int lv = eq;
         if (lv <= 0) return;
         float g = BASS[lv];
-        float ab = 1f - (float) Math.exp(-2 * Math.PI * 200.0 / rate);
+        float ab = 1f - (float) Math.exp(-2 * Math.PI * 250.0 / rate);
         float ah = 1f - (float) Math.exp(-2 * Math.PI * TREB[lv] / rate);
-        float comp = 1f / (1f + 0.45f * g);
         for (int i = 0; i < frames; i++) {
             float l = a[2 * i], r = a[2 * i + 1];
             lb0 += ab * (l - lb0); lb1 += ab * (r - lb1);
             l += g * lb0; r += g * lb1;
             hc0 += ah * (l - hc0); hc1 += ah * (r - hc1);
-            float ol = hc0 * comp, or = hc1 * comp;
-            a[2 * i] = (short) Math.max(-32768, Math.min(32767, ol));
-            a[2 * i + 1] = (short) Math.max(-32768, Math.min(32767, or));
+            a[2 * i] = soft(hc0);
+            a[2 * i + 1] = soft(hc1);
         }
     }
 
