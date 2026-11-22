@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -138,6 +139,18 @@ public class MainActivity extends Activity {
         dbg.setBackgroundColor(0xAA000000);
         dbg.setTextSize(12);
         root.addView(dbg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
+        view.setXbr(getPreferences(MODE_PRIVATE).getInt("xbr", 0));
+        TextView gear = new TextView(this);
+        gear.setText("⚙");
+        gear.setTextColor(0xFFFFFFFF);
+        gear.setTextSize(22);
+        gear.setPadding(36, 8, 36, 8);
+        gear.setBackgroundColor(0x66000000);
+        gear.setOnClickListener(v -> showSettings());
+        FrameLayout.LayoutParams glp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
+        glp.topMargin = 24; glp.rightMargin = 24;
+        root.addView(gear, glp);
         EmuThread.speed = 1;
         TextView ff = new TextView(this);
         ff.setText("» x1");
@@ -158,7 +171,56 @@ public class MainActivity extends Activity {
         emu.start();
     }
 
+    private LinearLayout panel;
+
+    private void showSettings() {
+        if (panel != null) { root.removeView(panel); panel = null; return; }
+        panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setBackgroundColor(0xEE111111);
+        panel.setPadding(40, 30, 40, 30);
+        TextView t = new TextView(this);
+        t.setText("Ajustes");
+        t.setTextColor(0xFFFFFFFF);
+        t.setTextSize(18);
+        panel.addView(t);
+
+        TextView lbl = new TextView(this);
+        lbl.setText("Filtro xBR (bordes suaves)");
+        lbl.setTextColor(0xFFCCCCCC);
+        lbl.setPadding(0, 20, 0, 6);
+        panel.addView(lbl);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        String[] names = {"No", "1", "2", "3"};
+        final Button[] bs = new Button[4];
+        int cur = getPreferences(MODE_PRIVATE).getInt("xbr", 0);
+        for (int i = 0; i < 4; i++) {
+            final int lv = i;
+            bs[i] = new Button(this);
+            bs[i].setText(names[i]);
+            bs[i].setAlpha(i == cur ? 1f : 0.45f);
+            bs[i].setOnClickListener(v -> {
+                getPreferences(MODE_PRIVATE).edit().putInt("xbr", lv).apply();
+                if (view != null) view.setXbr(lv);
+                for (int j = 0; j < 4; j++) bs[j].setAlpha(j == lv ? 1f : 0.45f);
+            });
+            row.addView(bs[i]);
+        }
+        panel.addView(row);
+
+        Button close = new Button(this);
+        close.setText("Cerrar");
+        close.setOnClickListener(v -> { root.removeView(panel); panel = null; });
+        panel.addView(close);
+
+        root.addView(panel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+    }
+
     private void stopGame() {
+        panel = null;
         h.removeCallbacks(tick);
         dbg = null;
         if (emu != null) {
