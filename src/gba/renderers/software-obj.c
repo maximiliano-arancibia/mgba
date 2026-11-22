@@ -70,6 +70,11 @@
 		SPRITE_DRAW_PIXEL_ ## DEPTH ## _ ## TYPE(localX); \
 	}
 
+uint8_t zmObjPal[GBA_VIDEO_HORIZONTAL_PIXELS];
+uint8_t zmPal[GBA_VIDEO_HORIZONTAL_PIXELS];
+uint8_t zmPalBuf[GBA_VIDEO_HORIZONTAL_PIXELS * GBA_VIDEO_VERTICAL_PIXELS];
+static uint8_t zmCurPal;
+
 #define SPRITE_XBASE_16(localX) unsigned xBase = (localX & ~0x7) * 4 + ((localX >> 1) & 2);
 #define SPRITE_YBASE_16(localY) unsigned yBase = (localY & ~0x7) * stride + (localY & 0x7) * 4 + maskHi;
 
@@ -80,6 +85,7 @@
 	if ((current & FLAG_ORDER_MASK) > flags) { \
 		if (tileData) { \
 			renderer->spriteLayer[outX] = palette[tileData] | flags; \
+			zmObjPal[outX] = zmCurPal; \
 		} else if (current != FLAG_UNWRITTEN) { \
 			renderer->spriteLayer[outX] = (current & ~(FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)) | (flags & (FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)); \
 		} \
@@ -93,6 +99,7 @@
 		if (tileData) { \
 			unsigned color = (renderer->row[outX] & FLAG_OBJWIN) ? objwinPalette[tileData] : palette[tileData]; \
 			renderer->spriteLayer[outX] = color | flags; \
+			zmObjPal[outX] = zmCurPal; \
 		} else if (current != FLAG_UNWRITTEN) { \
 			renderer->spriteLayer[outX] = (current & ~(FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)) | (flags & (FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)); \
 		} \
@@ -120,6 +127,7 @@
 	if ((current & FLAG_ORDER_MASK) > flags) { \
 		if (tileData) { \
 			renderer->spriteLayer[outX] = palette[tileData] | flags; \
+			zmObjPal[outX] = zmCurPal; \
 		} else if (current != FLAG_UNWRITTEN) { \
 			renderer->spriteLayer[outX] = (current & ~(FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)) | (flags & (FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)); \
 		} \
@@ -133,6 +141,7 @@
 		if (tileData) { \
 			unsigned color = (renderer->row[outX] & FLAG_OBJWIN) ? objwinPalette[tileData] : palette[tileData]; \
 			renderer->spriteLayer[outX] = color | flags; \
+			zmObjPal[outX] = zmCurPal; \
 		} else if (current != FLAG_UNWRITTEN) { \
 			renderer->spriteLayer[outX] = (current & ~(FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)) | (flags & (FLAG_ORDER_MASK | FLAG_REBLEND | FLAG_TARGET_1)); \
 		} \
@@ -151,6 +160,7 @@
 	}
 
 int GBAVideoSoftwareRendererPreprocessSprite(struct GBAVideoSoftwareRenderer* renderer, struct GBAObj* sprite, int index, int y) {
+	zmCurPal = (uint8_t) GBAObjAttributesCGetPalette(sprite->c);
 	int width = GBAVideoObjSizes[GBAObjAttributesAGetShape(sprite->a) * 4 + GBAObjAttributesBGetSize(sprite->b)][0];
 	int height = GBAVideoObjSizes[GBAObjAttributesAGetShape(sprite->a) * 4 + GBAObjAttributesBGetSize(sprite->b)][1];
 	int start = renderer->start;

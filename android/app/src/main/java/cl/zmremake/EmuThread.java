@@ -9,7 +9,7 @@ public class EmuThread extends Thread {
     private final GameView view;
     private volatile boolean running = true;
     public static volatile float fps = 0, runMs = 0;
-    public static volatile int speed = 1;
+    public static volatile float speed = 1f;
     public static volatile int eq = 0;   // 0 = sin ecualizar, 1..3 = mas grave
     private static final float[] BASS = {0f, 0.5f, 1.0f, 1.8f};
     private static final float[] TREB = {0f, 10000f, 7000f, 5000f};
@@ -82,7 +82,7 @@ public class EmuThread extends Thread {
             view.frameReady();
             int r = Native.audioRate();
             if (r != curRate && r > 0) { curRate = r; track.setPlaybackRate(r); }
-            if (n > 0 && speed == 1) {
+            if (n > 0 && speed == 1f) {
                 applyEq(audio, n, curRate);
                 track.write(audio, 0, n * 2, AudioTrack.WRITE_NON_BLOCKING);
             }
@@ -91,7 +91,7 @@ public class EmuThread extends Thread {
             if (now2 - next > 100_000_000L) next = now2; // nos atrasamos mucho: reiniciar
             long wait = next - now2;
             if (wait > 0) java.util.concurrent.locks.LockSupport.parkNanos(wait);
-            next += period / speed;
+            next += (long) (period / speed);
         }
         track.stop();
         track.release();

@@ -18,4 +18,6 @@ public final class Native {
     public static native void requestState(String path, int action); // 1 guardar, 2 cargar
     public static native int stateResult();
     public static native void setPaused(boolean on);
+    public static native void rewind();
+    public static native void setHaloPal(int mask);
 }

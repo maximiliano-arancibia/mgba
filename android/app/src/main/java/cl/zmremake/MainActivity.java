@@ -152,11 +152,12 @@ public class MainActivity extends Activity {
             if (view != null) view.setMaster(fxOn && !testOn);
         });
         bar.addView(fx);
-        EmuThread.speed = 1;
+        EmuThread.speed = 1f;
         final TextView ff = barBtn("» x1", null);
         ff.setOnClickListener(v -> {
-            EmuThread.speed = EmuThread.speed == 1 ? 2 : (EmuThread.speed == 2 ? 4 : 1);
-            ff.setText("» x" + EmuThread.speed);
+            float sp = EmuThread.speed;
+            EmuThread.speed = sp == 1f ? 2f : (sp == 2f ? 4f : (sp == 4f ? 0.5f : 1f));
+            ff.setText(EmuThread.speed == 0.5f ? "» x0,5" : "» x" + (int) EmuThread.speed);
         });
         bar.addView(ff);
         final TextView tst = barBtn("TEST", null);
@@ -177,7 +178,7 @@ public class MainActivity extends Activity {
             ps.setBackgroundColor(pausedOn ? 0xCC008800 : 0x66000000);
         });
         bar.addView(ps);
-        bar.addView(barBtn("📷", v -> takeShot()));
+        bar.addView(barBtn("⏪", v -> Native.rewind()));
         FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
         blp.topMargin = 90;
@@ -409,42 +410,6 @@ public class MainActivity extends Activity {
         panelHolder = sv;
     }
     private View panelHolder;
-
-    @android.annotation.TargetApi(29)
-    private void takeShot() {
-        if (android.os.Build.VERSION.SDK_INT < 29) {
-            Toast.makeText(this, "Captura no disponible en este Android", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        final View barV = bar;
-        if (barV != null) barV.setVisibility(View.INVISIBLE);
-        h.postDelayed(() -> {
-            View decor = getWindow().getDecorView();
-            final android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
-                    decor.getWidth(), decor.getHeight(), android.graphics.Bitmap.Config.ARGB_8888);
-            android.view.PixelCopy.request(getWindow(),
-                    new android.graphics.Rect(0, 0, decor.getWidth(), decor.getHeight()), bmp, res -> {
-                if (barV != null) barV.setVisibility(View.VISIBLE);
-                if (res != android.view.PixelCopy.SUCCESS) {
-                    Toast.makeText(this, "No se pudo capturar", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                try {
-                    android.content.ContentValues cv = new android.content.ContentValues();
-                    cv.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "zm_" + System.currentTimeMillis() + ".png");
-                    cv.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png");
-                    cv.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/ZMRemake");
-                    Uri u = getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
-                    try (OutputStream os = getContentResolver().openOutputStream(u)) {
-                        bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, os);
-                    }
-                    Toast.makeText(this, "Captura guardada (Galería, carpeta ZMRemake)", Toast.LENGTH_SHORT).show();
-                } catch (Exception e) {
-                    Toast.makeText(this, "Error al guardar: " + e, Toast.LENGTH_LONG).show();
-                }
-            }, h);
-        }, 150);
-    }
 
     private void stateAction(int slot, int action) {
         String last = getPreferences(MODE_PRIVATE).getString("last", null);

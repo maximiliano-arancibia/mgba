@@ -22,6 +22,7 @@ static mColor* videoBuf = NULL;
 static unsigned long frames = 0;
 
 extern uint8_t zmFlagBuf[];
+extern uint8_t zmPalBuf[];
 static int testMode = 0;
 static mColor* dbgBuf = NULL;
 static int stats[22];
@@ -30,6 +31,37 @@ static volatile int pendAction = 0;   // 1 = guardar estado, 2 = cargar estado
 static volatile int lastResult = 0;
 static volatile int paused = 0;
 static int forceOne = 0;
+
+// Retroceso: instantaneas en memoria cada 6 cuadros (anillo de 24 = unos 2,4 s)
+#define RW_N 24
+#define RW_EVERY 6
+#define RW_BACK 20   // 20 instantaneas x 6 cuadros = 2 s
+static void* rwBuf[RW_N];
+static int rwHead = 0, rwCount = 0, rwTick = 0;
+static volatile int rwReq = 0;
+static volatile int haloPal = 0xFFFF;   // paletas de sprite que reciben halo (bit = numero de paleta)
+
+static void rwSnap(void) {
+	if (!rwBuf[rwHead]) {
+		rwBuf[rwHead] = malloc(core->stateSize(core));
+		if (!rwBuf[rwHead]) return;
+	}
+	if (core->saveState(core, rwBuf[rwHead])) {
+		rwHead = (rwHead + 1) % RW_N;
+		if (rwCount < RW_N) rwCount++;
+	}
+}
+
+static void rwBack(void) {
+	if (rwCount <= 0) return;
+	int steps = rwCount < RW_BACK ? rwCount : RW_BACK;
+	int idx = (rwHead - steps + RW_N) % RW_N;
+	if (core->loadState(core, rwBuf[idx])) {
+		rwHead = (idx + 1) % RW_N;
+		rwCount = rwCount - steps + 1;
+		forceOne = 1;
+	}
+}
 
 #define RGBC(r, g, b) ((mColor) ((r) | ((g) << 8) | ((b) << 16) | (0xFFu << 24)))
 static const mColor PALCOL[16] = {
@@ -44,11 +76,6 @@ static const float BGT[5][3] = {
 
 // Pinta la imagen de diagnostico: fondo en gris con tinte por capa, sprites por paleta.
 static void buildDebug(void) {
-	struct GBA* gba = core->board;
-	uint32_t key[256];
-	for (int i = 0; i < 256; i++) {
-		key[i] = (uint32_t) M_RGB5_TO_BGR8(gba->video.palette[256 + i]) & 0x00FFFFFF;
-	}
 	memset(stats, 0, sizeof(stats));
 	for (int i = 0; i < GBA_W * GBA_H; i++) {
 		uint32_t raw = videoBuf[i];
@@ -66,23 +93,12 @@ static void buildDebug(void) {
 			float v = 0.12f + lum * 0.65f;
 			out[0] = v * BGT[bg][0]; out[1] = v * BGT[bg][1]; out[2] = v * BGT[bg][2];
 		} else {
-			uint32_t c = raw & 0x00FFFFFF;
-			uint32_t bits = 0;
-			for (int k = 0; k < 256; k++) {
-				if ((k & 15) && key[k] == c) bits |= 1u << (k >> 4);
-			}
-			if (bits && !(bits & (bits - 1))) {
-				int pal = __builtin_ctz(bits);
-				stats[5 + pal]++;
-				float v = 0.7f + 0.3f * lum;
-				out[0] = ((PALCOL[pal] & 0xFF) / 255.f) * v;
-				out[1] = (((PALCOL[pal] >> 8) & 0xFF) / 255.f) * v;
-				out[2] = (((PALCOL[pal] >> 16) & 0xFF) / 255.f) * v;
-			} else {
-				stats[21]++;
-				float v = 0.75f + 0.25f * lum;
-				out[0] = out[1] = out[2] = v;
-			}
+			int pal = zmPalBuf[i] & 15;
+			stats[5 + pal]++;
+			float v = 0.7f + 0.3f * lum;
+			out[0] = ((PALCOL[pal] & 0xFF) / 255.f) * v;
+			out[1] = (((PALCOL[pal] >> 8) & 0xFF) / 255.f) * v;
+			out[2] = (((PALCOL[pal] >> 16) & 0xFF) / 255.f) * v;
 		}
 		int R = (int) (out[0] * 255.f), G = (int) (out[1] * 255.f), B = (int) (out[2] * 255.f);
 		if (R > 255) R = 255; if (G > 255) G = 255; if (B > 255) B = 255;
@@ -162,6 +178,8 @@ Java_cl_zmremake_Native_open(JNIEnv* env, jclass cls, jstring romPath, jstring s
 fail_core:
 	core->deinit(core);
 	core = NULL;
+	for (int i = 0; i < RW_N; i++) { free(rwBuf[i]); rwBuf[i] = NULL; }
+	rwHead = rwCount = rwTick = 0;
 	free(videoBuf);
 	videoBuf = NULL;
 fail:
@@ -199,14 +217,23 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 			                 : mCoreLoadStateNamed(core, vf, SAVESTATE_SAVEDATA);
 			vf->close(vf);
 			lastResult = ok ? 1 : -1;
-			if (ok && a == 2) forceOne = 1;
+			if (ok && a == 2) { forceOne = 1; rwCount = 0; }
 		}
 	}
+	if (rwReq) {
+		rwReq = 0;
+		rwBack();
+	}
 	if (!paused || forceOne) {
+		int wasForced = forceOne;
 		forceOne = 0;
 		core->runFrame(core);
 		frames++;
 		trackScroll();
+		if (!wasForced && ++rwTick >= RW_EVERY) {
+			rwTick = 0;
+			rwSnap();
+		}
 	}
 
 	void* dst = (*env)->GetDirectBufferAddress(env, video);
@@ -223,7 +250,7 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 	if (mdst) {
 		for (int i = 0; i < GBA_W * GBA_H; i++) {
 			uint8_t f = zmFlagBuf[i];
-			mdst[i] = (((f & 0xFC) != 0xFC) && !(f & 0x08)) ? 255 : 0;
+			mdst[i] = (((f & 0xFC) != 0xFC) && !(f & 0x08) && ((haloPal >> (zmPalBuf[i] & 15)) & 1)) ? 255 : 0;
 		}
 	}
 
@@ -305,3 +332,9 @@ Java_cl_zmremake_Native_stateResult(JNIEnv* env, jclass cls) {
 
 JNIEXPORT void JNICALL
 Java_cl_zmremake_Native_setPaused(JNIEnv* env, jclass cls, jboolean on) { paused = on ? 1 : 0; }
+
+JNIEXPORT void JNICALL
+Java_cl_zmremake_Native_rewind(JNIEnv* env, jclass cls) { rwReq = 1; }
+
+JNIEXPORT void JNICALL
+Java_cl_zmremake_Native_setHaloPal(JNIEnv* env, jclass cls, jint mask) { haloPal = mask & 0xFFFF; }

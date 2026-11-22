@@ -40,10 +40,13 @@ static inline unsigned _darken(unsigned color, int y);
 
 // ZM: registro de que capa gana cada pixel (las banderas de la capa delantera se pierden al componer)
 extern uint8_t zmSrc[];
+extern uint8_t zmObjPal[];
+extern uint8_t zmPal[];
 static inline void _zmWin(struct GBAVideoSoftwareRenderer* renderer, uint32_t* pixel, uint32_t color) {
 	ptrdiff_t i = pixel - renderer->row;
 	if (i >= 0 && i < GBA_VIDEO_HORIZONTAL_PIXELS) {
 		zmSrc[i] = (uint8_t) (color >> 24);
+		zmPal[i] = zmObjPal[i];
 	}
 }
 
