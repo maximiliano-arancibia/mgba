@@ -210,6 +210,8 @@ Java_cl_zmremake_Native_setKeys(JNIEnv* env, jclass cls, jint keys) {
 
 // Avanza un cuadro. Copia el video (RGBA 8888) al buffer directo y el audio
 // (estereo, int16) al arreglo. Devuelve cuantos pares de muestras hay.
+static int noHudFrames = 0, menuNow = 0;
+
 JNIEXPORT jint JNICALL
 Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject mask, jshortArray audio) {
 	if (!core) {
@@ -294,7 +296,10 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 				if ((zmPalBuf[i] & 15) == 4 && (i % GBA_W) < 100 && (i / GBA_W) < 24) hudE++;
 			}
 		}
-		int menu = (cnt[5] > 0 && hudE < 20);   // hay interfaz de mapa pero no contador de energia: menu o pausa
+		// sin contador de energia (menu, pausa, pantalla de item nuevo) durante 3 cuadros seguidos = pantalla de menu
+		if (hudE < 20) { if (noHudFrames < 100) noHudFrames++; } else noHudFrames = 0;
+		int menu = (noHudFrames >= 3) || (cnt[5] > 0 && hudE < 20);
+		menuNow = menu;
 		for (int i = 0; i < GBA_W * GBA_H; i++) {
 			uint8_t f = zmFlagBuf[i];
 			int x = i % GBA_W, y = i / GBA_W;
@@ -363,8 +368,8 @@ Java_cl_zmremake_Native_info(JNIEnv* env, jclass cls) {
 		total++;
 		if ((videoBuf[i] & 0x00FFFFFF) != 0x00FFFFFF) nonwhite++;
 	}
-	snprintf(out, sizeof(out), "%s [%s] cuadros=%lu\npx0=%08X centro=%08X no-blancos=%u/%u",
-	         title, code, frames, (unsigned) videoBuf[0], (unsigned) videoBuf[80 * GBA_W + 120], nonwhite, total);
+	snprintf(out, sizeof(out), "%s [%s] cuadros=%lu menu=%d\npx0=%08X centro=%08X no-blancos=%u/%u",
+	         title, code, frames, menuNow, (unsigned) videoBuf[0], (unsigned) videoBuf[80 * GBA_W + 120], nonwhite, total);
 	return (*env)->NewStringUTF(env, out);
 }
 

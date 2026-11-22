@@ -49,7 +49,20 @@ public class MainActivity extends Activity {
         root = new FrameLayout(this);
         root.setBackgroundColor(0xFF000000);
         setContentView(root);
+        goImmersive();
         showMenu();
+    }
+
+    private void goImmersive() {
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) goImmersive();
     }
 
     private Button big(String t) {
@@ -594,7 +607,53 @@ public class MainActivity extends Activity {
         }
     }
 
-    @Override protected void onPause() { super.onPause(); stopGame(); showMenuIfNeeded(); }
+    private boolean resumeAuto = false, resumeCheat = false;
+
+    @Override protected void onPause() {
+        super.onPause();
+        String last = getPreferences(MODE_PRIVATE).getString("last", null);
+        if (emu != null && view != null && last != null) {
+            // guardar el estado exacto y soltar el nucleo (asi la partida tambien queda a salvo si Android cierra la app)
+            Native.stateResult();
+            Native.requestState(last + ".ssauto", 1);
+            int r = 0;
+            for (int i = 0; i < 40 && r == 0; i++) {
+                try { Thread.sleep(15); } catch (InterruptedException ignored) { }
+                r = Native.stateResult();
+            }
+            resumeCheat = cheatOn;
+            stopGame();
+            if (r == 1) { resumeAuto = true; return; }
+        }
+        stopGame();
+        showMenuIfNeeded();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (!resumeAuto) return;
+        resumeAuto = false;
+        String last = getPreferences(MODE_PRIVATE).getString("last", null);
+        if (last == null) { showMenuIfNeeded(); return; }
+        startGame(new File(last));
+        if (emu == null) return;
+        Native.requestState(last + ".ssauto", 2);
+        if (resumeCheat) {
+            cheatOn = true;
+            Native.setCheatLife(true);
+            View ch = findCheatButton();
+            if (ch != null) ch.setBackgroundColor(0xCCCC0000);
+        }
+    }
+
+    private View findCheatButton() {
+        if (bar == null) return null;
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View c = bar.getChildAt(i);
+            if (c instanceof TextView && "♥".contentEquals(((TextView) c).getText())) return c;
+        }
+        return null;
+    }
     private void showMenuIfNeeded() { if (view != null) { view = null; showMenu(); } }
 
     // ---- mando fisico (con botones reasignables) ----
