@@ -307,7 +307,7 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         GLES20.glUseProgram(prog);
         GLES20.glUniform1i(uTex, 0);
         GLES20.glUniform1i(uGlowL, 2);
-        float[] hv = {0f, 1.5f, 3.0f, 5.0f};
+        float[] hv = {0f, 0.6f, 1.5f, 3.0f, 5.0f};
         GLES20.glUniform1f(uHaloL, useGlow ? hv[halo] : 0f);
         boolean m = master;
         int lv = m ? xbr : 0;

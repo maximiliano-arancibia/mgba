@@ -330,7 +330,7 @@ public class MainActivity extends Activity {
         optionRow("Tamaño del grano", "gsz2", 1, 4, new String[]{"1", "2", "3", "4"});
         optionRow("Color (más oscuro y serio)", "color", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Luces (devuelve brillo a lo claro)", "luces", 0, 4, new String[]{"No", "1", "2", "3", "4"});
-        optionRow("Halo de luz (disparos y brillos de sprites)", "halo", 0, 3, new String[]{"No", "1", "2", "3"});
+        optionRow("Halo de luz (disparos y brillos de sprites)", "halo", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Sonido (más grave)", "audio", 0, 3, new String[]{"No", "1", "2", "3"});
 
         // ---- slots ----
