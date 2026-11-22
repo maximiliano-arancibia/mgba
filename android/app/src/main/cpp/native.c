@@ -286,11 +286,15 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 	if (mdst) {
 		// Cuenta de pixeles por paleta de sprite (para distinguir pantalla de juego, menu y cabina)
 		int cnt[16] = {0};
+		int hudE = 0;   // pixeles del contador de energia (arriba a la izquierda): solo existe en el juego
 		for (int i = 0; i < GBA_W * GBA_H; i++) {
 			uint8_t f = zmFlagBuf[i];
-			if (((f & 0xFC) != 0xFC) && !(f & 0x08)) cnt[zmPalBuf[i] & 15]++;
+			if (((f & 0xFC) != 0xFC) && !(f & 0x08)) {
+				cnt[zmPalBuf[i] & 15]++;
+				if ((zmPalBuf[i] & 15) == 4 && (i % GBA_W) < 100 && (i / GBA_W) < 24) hudE++;
+			}
 		}
-		int menu = (cnt[0] == 0 && cnt[5] > 0);   // sin Samus pero con interfaz: pantalla de mapa/pausa
+		int menu = (cnt[5] > 0 && hudE < 20);   // hay interfaz de mapa pero no contador de energia: menu o pausa
 		for (int i = 0; i < GBA_W * GBA_H; i++) {
 			uint8_t f = zmFlagBuf[i];
 			int x = i % GBA_W, y = i / GBA_W;
