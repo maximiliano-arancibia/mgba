@@ -29,11 +29,14 @@ public class EmuThread extends Thread {
                         .setSampleRate(rate)
                         .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                         .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO).build())
-                .setBufferSizeInBytes(Math.max(minBuf, 4096 * 2))
+                .setBufferSizeInBytes(Math.max(minBuf, 16384))
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build();
         track.play();
         short[] audio = new short[4096];
+        final long period = (long) (1e9 / 59.7275);
+        long next = System.nanoTime() + period;
+        int curRate = rate;
         long t0 = System.nanoTime(), acc = 0;
         int cnt = 0;
         while (running) {
@@ -47,8 +50,15 @@ public class EmuThread extends Thread {
                 t0 = now; acc = 0; cnt = 0;
             }
             view.frameReady();
-            if (n > 0) track.write(audio, 0, n * 2);
-            else try { Thread.sleep(16); } catch (InterruptedException ignored) { }
+            int r = Native.audioRate();
+            if (r != curRate && r > 0) { curRate = r; track.setPlaybackRate(r); }
+            if (n > 0) track.write(audio, 0, n * 2, AudioTrack.WRITE_NON_BLOCKING);
+            // reloj propio: esperar hasta el siguiente cuadro
+            long now2 = System.nanoTime();
+            if (now2 - next > 100_000_000L) next = now2; // nos atrasamos mucho: reiniciar
+            long wait = next - now2;
+            if (wait > 0) java.util.concurrent.locks.LockSupport.parkNanos(wait);
+            next += period;
         }
         track.stop();
         track.release();
