@@ -20,4 +20,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: zmremake-apk
+          retention-days: 7
           path: android/app/build/outputs/apk/release/*.apk

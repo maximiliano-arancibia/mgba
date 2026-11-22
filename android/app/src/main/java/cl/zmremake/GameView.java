@@ -184,7 +184,7 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         GLES20.glUniform2f(uScrollL, scx, scy);
         if (d) frameNo++;
         float[] ck = {0f, 0.12f, 0.25f, 0.38f, 0.50f};
-        float[] lu = {0f, 0.35f, 0.70f, 1.0f};
+        float[] lu = {0f, 0.35f, 0.70f, 1.0f, 1.4f};
         float kk = m ? ck[colorLv] : 0f;
         GLES20.glUniform1f(uColKL, kk);
         GLES20.glUniform1f(uColSL, kk * 0.8f);

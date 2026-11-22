@@ -16,6 +16,9 @@
 #define CLEAN_SCANLINE(R, Y) R->scanlineDirty[Y >> 5] &= ~(1U << (Y & 0x1F))
 #define SOFTWARE_MAGIC 0x6E727773
 
+// ZM: banderas por pixel (capa/prioridad) del ultimo cuadro, para el modo de prueba
+uint8_t zmFlagBuf[GBA_VIDEO_HORIZONTAL_PIXELS * GBA_VIDEO_VERTICAL_PIXELS];
+
 static void GBAVideoSoftwareRendererInit(struct GBAVideoRenderer* renderer);
 static void GBAVideoSoftwareRendererDeinit(struct GBAVideoRenderer* renderer);
 static void GBAVideoSoftwareRendererReset(struct GBAVideoRenderer* renderer);
@@ -705,6 +708,11 @@ static void GBAVideoSoftwareRendererDrawScanline(struct GBAVideoRenderer* render
 	}
 
 	int x;
+	if (y >= 0 && y < GBA_VIDEO_VERTICAL_PIXELS) {
+		for (x = 0; x < GBA_VIDEO_HORIZONTAL_PIXELS; ++x) {
+			zmFlagBuf[y * GBA_VIDEO_HORIZONTAL_PIXELS + x] = softwareRenderer->row[x] >> 24;
+		}
+	}
 	if (softwareRenderer->stereo) {
 		for (x = 0; x < GBA_VIDEO_HORIZONTAL_PIXELS; x += 4) {
 			row[x] = softwareRenderer->row[x] & (M_COLOR_RED | M_COLOR_BLUE);

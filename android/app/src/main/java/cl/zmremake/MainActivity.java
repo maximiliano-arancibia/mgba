@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
     private final Handler h = new Handler();
     private final Runnable tick = new Runnable() {
         public void run() {
+            if (dbg != null && emu != null) updateLegend();
             if (dbg != null && emu != null) dbg.setText(Native.info() + String.format("\nfps=%.1f  runFrame=%.1f ms", EmuThread.fps, EmuThread.runMs) + "  capa=BG" + Native.scrollBg() + " scroll=" + Native.scrollX() + "," + Native.scrollY());
             h.postDelayed(this, 500);
         }
@@ -141,54 +142,114 @@ public class MainActivity extends Activity {
         root.addView(dbg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
         fxOn = true;
         applyAll();
-        TextView gear = new TextView(this);
-        gear.setText("⚙");
-        gear.setTextColor(0xFFFFFFFF);
-        gear.setTextSize(22);
-        gear.setPadding(36, 8, 36, 8);
-        gear.setBackgroundColor(0x66000000);
-        gear.setOnClickListener(v -> showSettings());
-        FrameLayout.LayoutParams glp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
-        glp.topMargin = 24; glp.rightMargin = 24;
-        root.addView(gear, glp);
-        TextView fx = new TextView(this);
-        fx.setText("FX ✓");
-        fx.setTextColor(0xFFFFFFFF);
-        fx.setTextSize(16);
-        fx.setPadding(36, 18, 36, 18);
-        fx.setBackgroundColor(0x66000000);
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.addView(barBtn("⚙", v -> showSettings()));
+        final TextView fx = barBtn("FX ✓", null);
         fx.setOnClickListener(v -> {
             fxOn = !fxOn;
             fx.setText(fxOn ? "FX ✓" : "FX ✗");
-            if (view != null) view.setMaster(fxOn);
+            if (view != null) view.setMaster(fxOn && !testOn);
         });
-        FrameLayout.LayoutParams xlp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
-        xlp.topMargin = 250; xlp.rightMargin = 24;
-        root.addView(fx, xlp);
+        bar.addView(fx);
         EmuThread.speed = 1;
-        TextView ff = new TextView(this);
-        ff.setText("» x1");
-        ff.setTextColor(0xFFFFFFFF);
-        ff.setTextSize(16);
-        ff.setPadding(36, 18, 36, 18);
-        ff.setBackgroundColor(0x66000000);
+        final TextView ff = barBtn("» x1", null);
         ff.setOnClickListener(v -> {
             EmuThread.speed = EmuThread.speed == 1 ? 2 : (EmuThread.speed == 2 ? 4 : 1);
             ff.setText("» x" + EmuThread.speed);
         });
-        FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
-        flp.topMargin = 140; flp.rightMargin = 24;
-        root.addView(ff, flp);
+        bar.addView(ff);
+        final TextView tst = barBtn("TEST", null);
+        tst.setOnClickListener(v -> {
+            testOn = !testOn;
+            Native.setTest(testOn);
+            tst.setAlpha(testOn ? 1f : 0.7f);
+            tst.setBackgroundColor(testOn ? 0xCC8800AA : 0x66000000);
+            if (view != null) view.setMaster(fxOn && !testOn);
+            if (legend != null) legend.setVisibility(testOn ? View.VISIBLE : View.GONE);
+        });
+        bar.addView(tst);
+        final TextView ps = barBtn("⏸", null);
+        ps.setOnClickListener(v -> {
+            pausedOn = !pausedOn;
+            Native.setPaused(pausedOn);
+            ps.setText(pausedOn ? "▶" : "⏸");
+            ps.setBackgroundColor(pausedOn ? 0xCC008800 : 0x66000000);
+        });
+        bar.addView(ps);
+        FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        blp.topMargin = 90;
+        root.addView(bar, blp);
+
+        legend = new TextView(this);
+        legend.setTextColor(0xFFFFFFFF);
+        legend.setBackgroundColor(0xAA000000);
+        legend.setTextSize(13);
+        legend.setPadding(16, 8, 16, 8);
+        legend.setVisibility(View.GONE);
+        FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        llp.bottomMargin = 12;
+        root.addView(legend, llp);
+        testOn = false;
+        pausedOn = false;
+        Native.setTest(false);
+        Native.setPaused(false);
         h.post(tick);
         emu = new EmuThread(view);
         emu.start();
     }
 
     private LinearLayout panel;
-    private boolean fxOn = true;
+    private boolean fxOn = true, testOn = false, pausedOn = false;
+    private TextView legend;
+    private final int[] st = new int[22];
+    private static final int[] PALC = {0xE6194B, 0x3CB44B, 0xFFE119, 0x0082C8, 0xF58231, 0x911EB4, 0x46F0F0, 0xF032E6,
+            0xD2F53C, 0xFABEBE, 0x008080, 0xAA6E28, 0x800000, 0xAAFFC3, 0x000080, 0x808080};
+    private static final int[] BGC = {0x7FA6FF, 0x7FFF8C, 0xFF8C73, 0xFFF273, 0x808080};
+
+    private TextView barBtn(String t, View.OnClickListener l) {
+        TextView b = new TextView(this);
+        b.setText(t);
+        b.setTextColor(0xFFFFFFFF);
+        b.setTextSize(16);
+        b.setPadding(30, 14, 30, 14);
+        b.setBackgroundColor(0x66000000);
+        if (l != null) b.setOnClickListener(l);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.rightMargin = 10;
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    private void updateLegend() {
+        if (legend == null || !testOn) return;
+        Native.testStats(st);
+        android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
+        sb.append("Fondo: ");
+        String[] bn = {"BG0", "BG1", "BG2", "BG3"};
+        for (int i = 0; i < 4; i++) {
+            if (st[i] > 0) {
+                int s0 = sb.length();
+                sb.append("■ " + bn[i] + " (" + st[i] + ")  ");
+                sb.setSpan(new android.text.style.ForegroundColorSpan(0xFF000000 | BGC[i]), s0, s0 + 1, 0);
+            }
+        }
+        sb.append("\nSprites, paletas: ");
+        boolean any = false;
+        for (int p = 0; p < 16; p++) {
+            if (st[5 + p] > 0) {
+                int s0 = sb.length();
+                sb.append("■ " + p + " (" + st[5 + p] + ")  ");
+                sb.setSpan(new android.text.style.ForegroundColorSpan(0xFF000000 | PALC[p]), s0, s0 + 1, 0);
+                any = true;
+            }
+        }
+        if (!any) sb.append("ninguno  ");
+        sb.append("\nBlanco = sprite sin paleta clara: " + st[21]);
+        legend.setText(sb);
+    }
     private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "audio"};
     private static final int[] DEFS = {0, 0, 3, 0, 0, 0};
 
@@ -264,7 +325,7 @@ public class MainActivity extends Activity {
         optionRow("Grano (intensidad)", "grain", 0, 3, new String[]{"No", "1", "2", "3"});
         optionRow("Tamaño del grano", "gsz2", 1, 4, new String[]{"1", "2", "3", "4"});
         optionRow("Color (más oscuro y serio)", "color", 0, 4, new String[]{"No", "1", "2", "3", "4"});
-        optionRow("Luces (devuelve brillo a lo claro)", "luces", 0, 3, new String[]{"No", "1", "2", "3"});
+        optionRow("Luces (devuelve brillo a lo claro)", "luces", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Sonido (más grave)", "audio", 0, 3, new String[]{"No", "1", "2", "3"});
 
         // ---- slots ----
@@ -310,6 +371,24 @@ public class MainActivity extends Activity {
         }
         panel.addView(save);
 
+        panel.addView(label("Estado del juego: guardar en"));
+        LinearLayout ss1 = new LinearLayout(this);
+        ss1.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout ss2 = new LinearLayout(this);
+        ss2.setOrientation(LinearLayout.HORIZONTAL);
+        for (int i = 1; i <= 3; i++) {
+            final int slot = i;
+            Button gb = small("" + i);
+            gb.setOnClickListener(v -> stateAction(slot, 1));
+            ss1.addView(gb);
+            Button lb = small("" + i);
+            lb.setOnClickListener(v -> stateAction(slot, 2));
+            ss2.addView(lb);
+        }
+        panel.addView(ss1);
+        panel.addView(label("Estado del juego: cargar de"));
+        panel.addView(ss2);
+
         Button close = small("Cerrar");
         close.setOnClickListener(v -> { root.removeView(panelHolder); panelHolder = null; panel = null; });
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -326,6 +405,18 @@ public class MainActivity extends Activity {
         panelHolder = sv;
     }
     private View panelHolder;
+
+    private void stateAction(int slot, int action) {
+        String last = getPreferences(MODE_PRIVATE).getString("last", null);
+        if (last == null) return;
+        Native.requestState(last + ".ss" + slot, action);
+        h.postDelayed(() -> {
+            int r = Native.stateResult();
+            String m = r == 1 ? (action == 1 ? "Estado guardado en " : "Estado cargado de ") + slot
+                    : (action == 2 ? "No hay estado en " + slot : "No se pudo guardar el estado");
+            Toast.makeText(this, m, Toast.LENGTH_SHORT).show();
+        }, 400);
+    }
 
     private void stopGame() {
         panel = null; panelHolder = null;

@@ -13,4 +13,9 @@ public final class Native {
     public static native int scrollX();
     public static native int scrollY();
     public static native int scrollBg();
+    public static native void setTest(boolean on);
+    public static native void testStats(int[] out);
+    public static native void requestState(String path, int action); // 1 guardar, 2 cargar
+    public static native int stateResult();
+    public static native void setPaused(boolean on);
 }
