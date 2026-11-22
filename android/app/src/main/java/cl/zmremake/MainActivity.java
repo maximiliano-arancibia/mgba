@@ -139,9 +139,8 @@ public class MainActivity extends Activity {
         dbg.setBackgroundColor(0xAA000000);
         dbg.setTextSize(12);
         root.addView(dbg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
-        view.setXbr(getPreferences(MODE_PRIVATE).getInt("xbr", 0));
-        view.setGrain(getPreferences(MODE_PRIVATE).getInt("grain", 0));
-        view.setGrainSize(getPreferences(MODE_PRIVATE).getInt("gsz2", 3));
+        fxOn = true;
+        applyAll();
         TextView gear = new TextView(this);
         gear.setText("⚙");
         gear.setTextColor(0xFFFFFFFF);
@@ -153,6 +152,21 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
         glp.topMargin = 24; glp.rightMargin = 24;
         root.addView(gear, glp);
+        TextView fx = new TextView(this);
+        fx.setText("FX ✓");
+        fx.setTextColor(0xFFFFFFFF);
+        fx.setTextSize(16);
+        fx.setPadding(36, 18, 36, 18);
+        fx.setBackgroundColor(0x66000000);
+        fx.setOnClickListener(v -> {
+            fxOn = !fxOn;
+            fx.setText(fxOn ? "FX ✓" : "FX ✗");
+            if (view != null) view.setMaster(fxOn);
+        });
+        FrameLayout.LayoutParams xlp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
+        xlp.topMargin = 250; xlp.rightMargin = 24;
+        root.addView(fx, xlp);
         EmuThread.speed = 1;
         TextView ff = new TextView(this);
         ff.setText("» x1");
@@ -174,102 +188,144 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout panel;
+    private boolean fxOn = true;
+    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces"};
+    private static final int[] DEFS = {0, 0, 3, 0, 0};
 
-    private void showSettings() {
-        if (panel != null) { root.removeView(panel); panel = null; return; }
-        panel = new LinearLayout(this);
-        panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setBackgroundColor(0xEE111111);
-        panel.setPadding(40, 30, 40, 30);
-        TextView t = new TextView(this);
-        t.setText("Ajustes");
-        t.setTextColor(0xFFFFFFFF);
-        t.setTextSize(18);
-        panel.addView(t);
+    private int pref(String k, int d) { return getPreferences(MODE_PRIVATE).getInt(k, d); }
 
-        TextView lbl = new TextView(this);
-        lbl.setText("Filtro xBR (bordes suaves)");
-        lbl.setTextColor(0xFFCCCCCC);
-        lbl.setPadding(0, 20, 0, 6);
-        panel.addView(lbl);
+    private void applyAll() {
+        if (view == null) return;
+        view.setXbr(pref("xbr", 0));
+        view.setGrain(pref("grain", 0));
+        view.setGrainSize(pref("gsz2", 3));
+        view.setColor(pref("color", 0));
+        view.setLuces(pref("luces", 0));
+    }
 
+    private TextView label(String t) {
+        TextView l = new TextView(this);
+        l.setText(t);
+        l.setTextColor(0xFFCCCCCC);
+        l.setTextSize(13);
+        l.setPadding(0, 12, 0, 2);
+        return l;
+    }
+
+    private Button small(String t) {
+        Button b = new Button(this);
+        b.setText(t);
+        b.setTextSize(13);
+        b.setMinHeight(0); b.setMinimumHeight(0); b.setMinWidth(0); b.setMinimumWidth(0);
+        b.setPadding(28, 10, 28, 10);
+        return b;
+    }
+
+    private void optionRow(String title, String key, int first, int last, String[] names) {
+        panel.addView(label(title));
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        String[] names = {"No", "1", "2", "3", "4"};
-        final Button[] bs = new Button[5];
-        int cur = getPreferences(MODE_PRIVATE).getInt("xbr", 0);
-        for (int i = 0; i < 5; i++) {
+        int cur = pref(key, DEFS[java.util.Arrays.asList(KEYS).indexOf(key)]);
+        final Button[] bs = new Button[last + 1];
+        for (int i = first; i <= last; i++) {
             final int lv = i;
-            bs[i] = new Button(this);
-            bs[i].setText(names[i]);
+            bs[i] = small(names[i - first]);
             bs[i].setAlpha(i == cur ? 1f : 0.45f);
             bs[i].setOnClickListener(v -> {
-                getPreferences(MODE_PRIVATE).edit().putInt("xbr", lv).apply();
-                if (view != null) view.setXbr(lv);
-                for (int j = 0; j < 5; j++) bs[j].setAlpha(j == lv ? 1f : 0.45f);
+                getPreferences(MODE_PRIVATE).edit().putInt(key, lv).apply();
+                applyAll();
+                for (int j = first; j <= last; j++) bs[j].setAlpha(j == lv ? 1f : 0.45f);
             });
             row.addView(bs[i]);
         }
         panel.addView(row);
-
-        TextView lbl2 = new TextView(this);
-        lbl2.setText("Grano");
-        lbl2.setTextColor(0xFFCCCCCC);
-        lbl2.setPadding(0, 20, 0, 6);
-        panel.addView(lbl2);
-        LinearLayout row2 = new LinearLayout(this);
-        row2.setOrientation(LinearLayout.HORIZONTAL);
-        String[] gn = {"No", "1", "2", "3"};
-        final Button[] gb = new Button[4];
-        int curG = getPreferences(MODE_PRIVATE).getInt("grain", 0);
-        for (int i = 0; i < 4; i++) {
-            final int lv = i;
-            gb[i] = new Button(this);
-            gb[i].setText(gn[i]);
-            gb[i].setAlpha(i == curG ? 1f : 0.45f);
-            gb[i].setOnClickListener(v -> {
-                getPreferences(MODE_PRIVATE).edit().putInt("grain", lv).apply();
-                if (view != null) view.setGrain(lv);
-                for (int j = 0; j < 4; j++) gb[j].setAlpha(j == lv ? 1f : 0.45f);
-            });
-            row2.addView(gb[i]);
-        }
-        panel.addView(row2);
-
-        TextView lbl3 = new TextView(this);
-        lbl3.setText("Tamaño del grano");
-        lbl3.setTextColor(0xFFCCCCCC);
-        lbl3.setPadding(0, 20, 0, 6);
-        panel.addView(lbl3);
-        LinearLayout row3 = new LinearLayout(this);
-        row3.setOrientation(LinearLayout.HORIZONTAL);
-        final Button[] sb = new Button[5];
-        int curS = getPreferences(MODE_PRIVATE).getInt("gsz2", 3);
-        for (int i = 1; i <= 4; i++) {
-            final int lv = i;
-            sb[i] = new Button(this);
-            sb[i].setText(String.valueOf(i));
-            sb[i].setAlpha(i == curS ? 1f : 0.45f);
-            sb[i].setOnClickListener(v -> {
-                getPreferences(MODE_PRIVATE).edit().putInt("gsz2", lv).apply();
-                if (view != null) view.setGrainSize(lv);
-                for (int j = 1; j <= 4; j++) sb[j].setAlpha(j == lv ? 1f : 0.45f);
-            });
-            row3.addView(sb[i]);
-        }
-        panel.addView(row3);
-
-        Button close = new Button(this);
-        close.setText("Cerrar");
-        close.setOnClickListener(v -> { root.removeView(panel); panel = null; });
-        panel.addView(close);
-
-        root.addView(panel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
     }
 
+    private void showSettings() {
+        if (panel != null) { root.removeView(panelHolder); panelHolder = null; panel = null; return; }
+        buildPanel();
+    }
+
+    private void buildPanel() {
+        if (panelHolder != null) root.removeView(panelHolder);
+        panelHolder = null;
+        panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setBackgroundColor(0xEE111111);
+        panel.setPadding(36, 24, 36, 24);
+        TextView t = new TextView(this);
+        t.setText("Ajustes");
+        t.setTextColor(0xFFFFFFFF);
+        t.setTextSize(17);
+        panel.addView(t);
+
+        optionRow("Filtro xBR (bordes suaves)", "xbr", 0, 4, new String[]{"No", "1", "2", "3", "4"});
+        optionRow("Grano (intensidad)", "grain", 0, 3, new String[]{"No", "1", "2", "3"});
+        optionRow("Tamaño del grano", "gsz2", 1, 4, new String[]{"1", "2", "3", "4"});
+        optionRow("Color (más oscuro y serio)", "color", 0, 4, new String[]{"No", "1", "2", "3", "4"});
+        optionRow("Luces (devuelve brillo a lo claro)", "luces", 0, 3, new String[]{"No", "1", "2", "3"});
+
+        // ---- slots ----
+        panel.addView(label("Cargar combinación"));
+        LinearLayout load = new LinearLayout(this);
+        load.setOrientation(LinearLayout.HORIZONTAL);
+        for (int i = 1; i <= 5; i++) {
+            final int slot = i;
+            String saved = getPreferences(MODE_PRIVATE).getString("slot" + i, null);
+            Button b = small("" + i);
+            b.setAlpha(saved == null ? 0.25f : 1f);
+            b.setOnClickListener(v -> {
+                String sv = getPreferences(MODE_PRIVATE).getString("slot" + slot, null);
+                if (sv == null) { Toast.makeText(this, "Slot " + slot + " vacío", Toast.LENGTH_SHORT).show(); return; }
+                String[] p = sv.split(",");
+                SharedPreferences.Editor e = getPreferences(MODE_PRIVATE).edit();
+                for (int k = 0; k < KEYS.length && k < p.length; k++) e.putInt(KEYS[k], Integer.parseInt(p[k]));
+                e.apply();
+                applyAll();
+                buildPanel();
+            });
+            load.addView(b);
+        }
+        panel.addView(load);
+
+        panel.addView(label("Guardar la combinación actual en"));
+        LinearLayout save = new LinearLayout(this);
+        save.setOrientation(LinearLayout.HORIZONTAL);
+        for (int i = 1; i <= 5; i++) {
+            final int slot = i;
+            Button b = small("" + i);
+            b.setOnClickListener(v -> {
+                StringBuilder sb = new StringBuilder();
+                for (int k = 0; k < KEYS.length; k++) {
+                    if (k > 0) sb.append(',');
+                    sb.append(pref(KEYS[k], DEFS[k]));
+                }
+                getPreferences(MODE_PRIVATE).edit().putString("slot" + slot, sb.toString()).apply();
+                Toast.makeText(this, "Guardado en slot " + slot, Toast.LENGTH_SHORT).show();
+                buildPanel();
+            });
+            save.addView(b);
+        }
+        panel.addView(save);
+
+        Button close = small("Cerrar");
+        close.setOnClickListener(v -> { root.removeView(panelHolder); panelHolder = null; panel = null; });
+        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        clp.topMargin = 16;
+        panel.addView(close, clp);
+
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.setBackgroundColor(0xEE111111);
+        sv.addView(panel);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER);
+        root.addView(sv, lp);
+        panelHolder = sv;
+    }
+    private View panelHolder;
+
     private void stopGame() {
-        panel = null;
+        panel = null; panelHolder = null;
         h.removeCallbacks(tick);
         dbg = null;
         if (emu != null) {

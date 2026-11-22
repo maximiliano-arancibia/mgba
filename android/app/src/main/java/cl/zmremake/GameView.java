@@ -19,7 +19,12 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
     private boolean dirty = false;
 
     private int prog, tex, aPos, aUv, uTex, uOn, uTol, uCut, uAA, uGrainL, uCellL, uSeedL, uScrollL;
-    private volatile int grain = 0, gsize = 1;
+    private volatile int grain = 0, gsize = 1, colorLv = 0, lucesLv = 0;
+    private volatile boolean master = true;
+    private int uColKL, uColSL, uLucesL;
+    public void setColor(int v) { colorLv = v; requestRender(); }
+    public void setLuces(int v) { lucesLv = v; requestRender(); }
+    public void setMaster(boolean on) { master = on; requestRender(); }
     private volatile float scx = 0, scy = 0;
     public void setGrainSize(int s) { gsize = s; requestRender(); }
     public void setScroll(int x, int y) { scx = ((x % 6144) + 6144) % 6144; scy = ((y % 6144) + 6144) % 6144; }
@@ -59,7 +64,7 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
                 + "void main(){ vUv = aUv; gl_Position = vec4(aPos, 0.0, 1.0); }";
         String fs = "#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n"
                 + "varying vec2 vUv; uniform sampler2D uTex;"
-                + "uniform float uOn, uTol, uCut, uAA, uGrain, uCell, uSeed;"
+                + "uniform float uOn, uTol, uCut, uAA, uGrain, uCell, uSeed, uColK, uColS, uLuces;"
                 + "uniform vec2 uScroll;"
                 + "const vec2 SZ = vec2(240.0, 160.0);"
                 + "vec3 px(vec2 c){ return texture2D(uTex, (floor(c) + 0.5) / SZ).rgb; }"
@@ -81,8 +86,20 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
                 + "      o = mix(P, n1, w);"
                 + "    }"
                 + "  }"
+                + "  vec3 o0 = o;"
+                + "  if (uColK > 0.0) {"
+                + "    float mx = max(o.r, max(o.g, o.b)); float mn = min(o.r, min(o.g, o.b));"
+                + "    float S = (mx - mn) / max(mx, 0.001);"
+                + "    float gate = smoothstep(0.08, 0.5, S);"
+                + "    float S2 = S + (1.0 - S) * gate * uColS;"
+                + "    float V2 = mx * (1.0 - uColK * smoothstep(0.08, 0.6, S));"
+                + "    vec3 t = (o - vec3(mn)) / max(mx - mn, 0.0001);"
+                + "    vec3 g = V2 * (1.0 - S2 + S2 * t);"
+                + "    float lw = uLuces * smoothstep(0.55, 0.9, mx) * (1.0 - 0.7 * smoothstep(0.3, 0.9, S));"
+                + "    o = mix(g, o, lw);"
+                + "  }"
                 + "  if (uGrain > 0.0) {"
-                + "    float vmax = max(o.r, max(o.g, o.b));"
+                + "    float vmax = max(o0.r, max(o0.g, o0.b));"
                 + "    float wgt = smoothstep(0.22, 0.50, vmax);"
                 + "    float n = hash(floor((pos + uScroll) / uCell)) * 2.0 - 1.0;"
                 + "    o += n * uGrain * wgt;"
@@ -104,6 +121,9 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         uCellL = GLES20.glGetUniformLocation(prog, "uCell");
         uSeedL = GLES20.glGetUniformLocation(prog, "uSeed");
         uScrollL = GLES20.glGetUniformLocation(prog, "uScroll");
+        uColKL = GLES20.glGetUniformLocation(prog, "uColK");
+        uColSL = GLES20.glGetUniformLocation(prog, "uColS");
+        uLucesL = GLES20.glGetUniformLocation(prog, "uLuces");
 
         int[] t = new int[1];
         GLES20.glGenTextures(1, t, 0);
@@ -148,7 +168,8 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         }
         GLES20.glUseProgram(prog);
         GLES20.glUniform1i(uTex, 0);
-        int lv = xbr;
+        boolean m = master;
+        int lv = m ? xbr : 0;
         float[] tol = {0f, 0.10f, 0.28f, 0.45f, 0.65f};
         float[] cut = {0f, 0.40f, 0.55f, 0.70f, 0.85f};
         GLES20.glUniform1f(uOn, lv > 0 ? 1f : 0f);
@@ -158,10 +179,16 @@ public class GameView extends GLSurfaceView implements GLSurfaceView.Renderer {
         float c1 = Math.min(1f, (float) W / quadPx);   // un pixel de pantalla
         float rr = (float) Math.pow(2f / c1, 1.0 / 3.0);
         float[] cellSz = {1f, c1, c1 * rr, c1 * rr * rr, 2f};
-        GLES20.glUniform1f(uGrainL, gr[grain]);
+        GLES20.glUniform1f(uGrainL, m ? gr[grain] : 0f);
         GLES20.glUniform1f(uCellL, cellSz[gsize]);
         GLES20.glUniform2f(uScrollL, scx, scy);
         if (d) frameNo++;
+        float[] ck = {0f, 0.12f, 0.25f, 0.38f, 0.50f};
+        float[] lu = {0f, 0.35f, 0.70f, 1.0f};
+        float kk = m ? ck[colorLv] : 0f;
+        GLES20.glUniform1f(uColKL, kk);
+        GLES20.glUniform1f(uColSL, kk * 0.8f);
+        GLES20.glUniform1f(uLucesL, lu[lucesLv]);
         GLES20.glUniform1f(uSeedL, (frameNo % 997) * 1.37f);
         GLES20.glUniform1f(uAA, Math.max(0.01f, (float) W / quadPx * 0.7f));
         quad.position(0);
