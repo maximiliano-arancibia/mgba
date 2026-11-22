@@ -16,7 +16,9 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.os.Handler;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -30,6 +32,14 @@ public class MainActivity extends Activity {
     private Controls controls;
     private EmuThread emu;
     private int padKeys = 0;
+    private TextView dbg;
+    private final Handler h = new Handler();
+    private final Runnable tick = new Runnable() {
+        public void run() {
+            if (dbg != null && emu != null) dbg.setText(Native.info());
+            h.postDelayed(this, 500);
+        }
+    };
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -105,11 +115,19 @@ public class MainActivity extends Activity {
         controls = new Controls(this);
         root.addView(view);
         root.addView(controls);
+        dbg = new TextView(this);
+        dbg.setTextColor(0xFFFF00FF);
+        dbg.setBackgroundColor(0xAA000000);
+        dbg.setTextSize(12);
+        root.addView(dbg, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
+        h.post(tick);
         emu = new EmuThread(view);
         emu.start();
     }
 
     private void stopGame() {
+        h.removeCallbacks(tick);
+        dbg = null;
         if (emu != null) {
             emu.shutdown();
             emu = null;

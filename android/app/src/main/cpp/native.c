@@ -2,6 +2,7 @@
 #include <jni.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <fcntl.h>
 
 #include <mgba/core/core.h>
@@ -14,6 +15,7 @@
 
 static struct mCore* core = NULL;
 static mColor* videoBuf = NULL;
+static unsigned long frames = 0;
 
 JNIEXPORT jboolean JNICALL
 Java_cl_zmremake_Native_open(JNIEnv* env, jclass cls, jstring romPath, jstring savePath) {
@@ -82,6 +84,7 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jshortA
 		return 0;
 	}
 	core->runFrame(core);
+	frames++;
 
 	void* dst = (*env)->GetDirectBufferAddress(env, video);
 	if (dst) {
@@ -105,4 +108,23 @@ Java_cl_zmremake_Native_close(JNIEnv* env, jclass cls) {
 	}
 	free(videoBuf);
 	videoBuf = NULL;
+}
+
+JNIEXPORT jstring JNICALL
+Java_cl_zmremake_Native_info(JNIEnv* env, jclass cls) {
+	char out[256];
+	if (!core || !videoBuf) {
+		return (*env)->NewStringUTF(env, "sin nucleo");
+	}
+	char title[32] = {0}, code[16] = {0};
+	core->getGameTitle(core, title);
+	core->getGameCode(core, code);
+	unsigned nonwhite = 0, total = 0;
+	for (int i = 0; i < GBA_W * GBA_H; i += 97) {
+		total++;
+		if ((videoBuf[i] & 0x00FFFFFF) != 0x00FFFFFF) nonwhite++;
+	}
+	snprintf(out, sizeof(out), "%s [%s] cuadros=%lu\npx0=%08X centro=%08X no-blancos=%u/%u",
+	         title, code, frames, (unsigned) videoBuf[0], (unsigned) videoBuf[80 * GBA_W + 120], nonwhite, total);
+	return (*env)->NewStringUTF(env, out);
 }

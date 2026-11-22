@@ -9,4 +9,5 @@ public final class Native {
     public static native void setKeys(int keys);
     public static native int runFrame(ByteBuffer video, short[] audio);
     public static native void close();
+    public static native String info();
 }
