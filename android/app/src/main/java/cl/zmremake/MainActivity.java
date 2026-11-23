@@ -240,21 +240,16 @@ public class MainActivity extends Activity {
         blp.topMargin = 90;
         root.addView(bar, blp);
 
-        final TextView tog = new TextView(this);
+        tog = new TextView(this);
         tog.setText("◉");
         tog.setTextColor(0xFFFFFFFF);
         tog.setTextSize(22);
         tog.setGravity(Gravity.CENTER);
         tog.setBackgroundColor(0x66000000);
         tog.setAlpha(0.7f);
-        tog.setOnClickListener(v -> {
-            uiHidden = !uiHidden;
-            bar.setVisibility(uiHidden ? View.GONE : View.VISIBLE);
-            if (controls != null) controls.setVisibility(uiHidden ? View.GONE : View.VISIBLE);
-            if (uiHidden && panelHolder != null) { root.removeView(panelHolder); panelHolder = null; panel = null; }
-            tog.setAlpha(uiHidden ? 0.35f : 0.7f);
-        });
+        tog.setOnClickListener(v -> setUiHidden(!uiHidden));
         uiHidden = false;
+        autoHideDone = false;
         FrameLayout.LayoutParams tlp = new FrameLayout.LayoutParams(96, 96, Gravity.LEFT | Gravity.CENTER_VERTICAL);
         tlp.leftMargin = 30;
         root.addView(tog, tlp);
@@ -274,6 +269,7 @@ public class MainActivity extends Activity {
         cheatOn = false;
         Native.setTest(false);
         Native.setPaused(false);
+        if (gamepadConnected()) { setUiHidden(true); autoHideDone = true; }
         h.post(tick);
         emu = new EmuThread(view);
         emu.start();
@@ -607,23 +603,57 @@ public class MainActivity extends Activity {
         }
     }
 
-    private boolean resumeAuto = false, resumeCheat = false;
+
+    private TextView tog;
+    private boolean autoHideDone = false;
+
+    private void setUiHidden(boolean hide) {
+        uiHidden = hide;
+        if (bar != null) bar.setVisibility(hide ? View.GONE : View.VISIBLE);
+        if (controls != null) controls.setVisibility(hide ? View.GONE : View.VISIBLE);
+        if (hide && panelHolder != null) { root.removeView(panelHolder); panelHolder = null; panel = null; }
+        if (tog != null) tog.setAlpha(hide ? 0.35f : 0.7f);
+    }
+
+    private boolean gamepadConnected() {
+        for (int id : InputDevice.getDeviceIds()) {
+            InputDevice d = InputDevice.getDevice(id);
+            if (d == null || d.isVirtual()) continue;
+            int src = d.getSources();
+            if ((src & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+                    || (src & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) return true;
+        }
+        return false;
+    }
+
+    private void padUsed(int source) {
+        if (!autoHideDone && !uiHidden && controls != null
+                && ((source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+                    || (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK)) {
+            autoHideDone = true;
+            setUiHidden(true);
+        }
+    }
+
+    private boolean resumeAuto = false, resumeCheat = false, failedAuto = false;
 
     @Override protected void onPause() {
         super.onPause();
+        if (resumeAuto) return;   // ya guardado y soltado: no volver al menu por una segunda pausa
         String last = getPreferences(MODE_PRIVATE).getString("last", null);
         if (emu != null && view != null && last != null) {
             // guardar el estado exacto y soltar el nucleo (asi la partida tambien queda a salvo si Android cierra la app)
             Native.stateResult();
             Native.requestState(last + ".ssauto", 1);
             int r = 0;
-            for (int i = 0; i < 40 && r == 0; i++) {
+            for (int i = 0; i < 100 && r == 0; i++) {
                 try { Thread.sleep(15); } catch (InterruptedException ignored) { }
                 r = Native.stateResult();
             }
             resumeCheat = cheatOn;
             stopGame();
             if (r == 1) { resumeAuto = true; return; }
+            failedAuto = true;
         }
         stopGame();
         showMenuIfNeeded();
@@ -631,6 +661,10 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        if (failedAuto) {
+            failedAuto = false;
+            Toast.makeText(this, "No se pudo guardar el estado automatico: volviste al menu", Toast.LENGTH_LONG).show();
+        }
         if (!resumeAuto) return;
         resumeAuto = false;
         String last = getPreferences(MODE_PRIVATE).getString("last", null);
@@ -754,6 +788,7 @@ public class MainActivity extends Activity {
         Integer kb = keyMap.get(code);
         int k = kb == null ? 0 : kb;
         if (k != 0 && controls != null) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN) padUsed(e.getSource());
             if (e.getAction() == KeyEvent.ACTION_DOWN) padKeys |= k; else if (e.getAction() == KeyEvent.ACTION_UP) padKeys &= ~k;
             controls.setPadKeys(padKeys);
             return true;
@@ -763,6 +798,7 @@ public class MainActivity extends Activity {
 
     @Override public boolean dispatchGenericMotionEvent(MotionEvent e) {
         if (controls != null && (e.getSource() & InputDevice.SOURCE_JOYSTICK) != 0 && e.getAction() == MotionEvent.ACTION_MOVE) {
+            padUsed(e.getSource());
             float x = e.getAxisValue(MotionEvent.AXIS_X), y = e.getAxisValue(MotionEvent.AXIS_Y);
             float hx = e.getAxisValue(MotionEvent.AXIS_HAT_X), hy = e.getAxisValue(MotionEvent.AXIS_HAT_Y);
             int keep = padKeys & ~(Controls.UP | Controls.DOWN | Controls.LEFT | Controls.RIGHT);
