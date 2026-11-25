@@ -325,7 +325,7 @@ Java_cl_zmremake_Native_runFrame(JNIEnv* env, jclass cls, jobject video, jobject
 				float r = (raw & 0xFF) / 255.f, g = ((raw >> 8) & 0xFF) / 255.f, b = ((raw >> 16) & 0xFF) / 255.f;
 				float mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
 				float mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
-				if (mx > 0.65f && mx - mn > 0.65f * mx && r >= mx - 0.001f && g < 0.75f * r && b < 0.45f * r) m = 255;
+				if (mx > 0.65f && mx - mn > 0.65f * mx && r >= mx - 0.001f && g < 0.75f * r && b < 0.45f * r) m = 128;   // lava: nivel del halo HUD
 			}
 			mdst[i] = m;
 		}
