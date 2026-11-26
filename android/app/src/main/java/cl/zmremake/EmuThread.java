@@ -10,10 +10,7 @@ public class EmuThread extends Thread {
     private volatile boolean running = true;
     public static volatile float fps = 0, runMs = 0;
     public static volatile float speed = 1f;
-    public static volatile int eq = 0;   // 0 = sin ecualizar, 1..3 = mas grave
-    private static final float[] BASS = {0f, 0.5f, 1.0f, 1.8f};
-    private static final float[] TREB = {0f, 10000f, 7000f, 5000f};
-    private float lb0, lb1, hc0, hc1;   // estados de los filtros (izq, der)
+    public static volatile int tone = 0;   // 0 = sin cambio, 1 = una octava mas grave, 2 = dos octavas
 
     // limitador suave: por encima de 24000 se comprime en vez de cortar
     private static short soft(float v) {
@@ -23,19 +20,34 @@ public class EmuThread extends Thread {
         return (short) (v < 0 ? -m : m);
     }
 
-    private void applyEq(short[] a, int frames, int rate) {
-        int lv = eq;
-        if (lv <= 0) return;
-        float g = BASS[lv];
-        float ab = 1f - (float) Math.exp(-2 * Math.PI * 250.0 / rate);
-        float ah = 1f - (float) Math.exp(-2 * Math.PI * TREB[lv] / rate);
+    private OctaveDown p1, p2;
+    private int curTone = 0;
+    private boolean needReset = true;
+    private final float[] fl = new float[4096], fr = new float[4096], tl = new float[4096], tr = new float[4096];
+
+    // Baja el tono (1 o 2 octavas) y deja exactamente n cuadros en el arreglo
+    private void applyTone(short[] a, int frames) {
+        int lv = tone;
+        if (lv != curTone || needReset) {
+            curTone = lv;
+            needReset = false;
+            p1 = lv >= 1 ? new OctaveDown(lv == 1 ? 1100 : 0) : null;
+            p2 = lv >= 2 ? new OctaveDown(2100) : null;
+        }
+        if (lv <= 0 || frames <= 0 || frames > 2048) return;
+        for (int i = 0; i < frames; i++) { fl[i] = a[2 * i]; fr[i] = a[2 * i + 1]; }
+        OctaveDown last = p1;
+        p1.push(fl, fr, frames);
+        if (p2 != null) {
+            int got = p1.pull(tl, tr, 4096);
+            p2.push(tl, tr, got);
+            last = p2;
+        }
+        int got = last.pull(tl, tr, frames);
         for (int i = 0; i < frames; i++) {
-            float l = a[2 * i], r = a[2 * i + 1];
-            lb0 += ab * (l - lb0); lb1 += ab * (r - lb1);
-            l += g * lb0; r += g * lb1;
-            hc0 += ah * (l - hc0); hc1 += ah * (r - hc1);
-            a[2 * i] = soft(hc0);
-            a[2 * i + 1] = soft(hc1);
+            float l = i < got ? tl[i] : 0f, r = i < got ? tr[i] : 0f;
+            a[2 * i] = soft(l);
+            a[2 * i + 1] = soft(r);
         }
     }
 
@@ -83,8 +95,10 @@ public class EmuThread extends Thread {
             int r = Native.audioRate();
             if (r != curRate && r > 0) { curRate = r; track.setPlaybackRate(r); }
             if (n > 0 && speed == 1f) {
-                applyEq(audio, n, curRate);
+                applyTone(audio, n);
                 track.write(audio, 0, n * 2, AudioTrack.WRITE_NON_BLOCKING);
+            } else if (speed != 1f) {
+                needReset = true;   // al volver a x1 se empieza limpio
             }
             // reloj propio: esperar hasta el siguiente cuadro
             long now2 = System.nanoTime();

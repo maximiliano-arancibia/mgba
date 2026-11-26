@@ -334,13 +334,13 @@ public class MainActivity extends Activity {
         sb.append("\nBlanco = sprite sin paleta clara: " + st[21]);
         legend.setText(sb);
     }
-    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "audio", "halo", "hud"};
+    private static final String[] KEYS = {"xbr", "grain", "gsz2", "color", "luces", "tono", "halo", "hud"};
     private static final int[] DEFS = {0, 0, 3, 0, 0, 0, 0, 0};
 
     private int pref(String k, int d) { return getPreferences(MODE_PRIVATE).getInt(k, d); }
 
     private void applyAll() {
-        EmuThread.eq = pref("audio", 0);
+        EmuThread.tone = Math.max(0, Math.min(2, pref("tono", 0)));
         if (view == null) return;
         view.setXbr(pref("xbr", 0));
         view.setGrain(pref("grain", 0));
@@ -521,7 +521,7 @@ public class MainActivity extends Activity {
         optionRow("Luces", "luces", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Halo de luz", "halo", 0, 4, new String[]{"No", "1", "2", "3", "4"});
         optionRow("Halo HUD", "hud", 0, 4, new String[]{"No", "1", "2", "3", "4"});
-        optionRow("Sonido grave", "audio", 0, 3, new String[]{"No", "1", "2", "3"});
+        optionRow("Tono grave (octavas)", "tono", 0, 2, new String[]{"No", "1", "2"});
 
         rightCol.addView(label("Cargar combinación"));
         LinearLayout load = new LinearLayout(this);
