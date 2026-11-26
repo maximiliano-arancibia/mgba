@@ -250,6 +250,7 @@ public class MainActivity extends Activity {
         tog.setOnClickListener(v -> setUiHidden(!uiHidden));
         uiHidden = false;
         autoHideDone = false;
+        padMode = false;
         FrameLayout.LayoutParams tlp = new FrameLayout.LayoutParams(96, 96, Gravity.LEFT | Gravity.CENTER_VERTICAL);
         tlp.leftMargin = 30;
         root.addView(tog, tlp);
@@ -269,7 +270,7 @@ public class MainActivity extends Activity {
         cheatOn = false;
         Native.setTest(false);
         Native.setPaused(false);
-        if (gamepadConnected()) { setUiHidden(true); autoHideDone = true; }
+        if (gamepadConnected()) { padMode = true; setUiHidden(true); autoHideDone = true; }
         h.post(tick);
         emu = new EmuThread(view);
         emu.start();
@@ -605,12 +606,12 @@ public class MainActivity extends Activity {
 
 
     private TextView tog;
-    private boolean autoHideDone = false;
+    private boolean autoHideDone = false, padMode = false;
 
     private void setUiHidden(boolean hide) {
         uiHidden = hide;
         if (bar != null) bar.setVisibility(hide ? View.GONE : View.VISIBLE);
-        if (controls != null) controls.setVisibility(hide ? View.GONE : View.VISIBLE);
+        if (controls != null) controls.setVisibility(hide || padMode ? View.GONE : View.VISIBLE);   // con mando, los botones tactiles nunca se muestran
         if (hide && panelHolder != null) { root.removeView(panelHolder); panelHolder = null; panel = null; }
         if (tog != null) tog.setAlpha(hide ? 0.35f : 0.7f);
     }
@@ -631,6 +632,7 @@ public class MainActivity extends Activity {
                 && ((source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
                     || (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK)) {
             autoHideDone = true;
+            padMode = true;
             setUiHidden(true);
         }
     }
